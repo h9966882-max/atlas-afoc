@@ -8,15 +8,16 @@
 <style>
 :root{--ink:#474441;--muted:#827a75;--line:#eaded6;--paper:#fffaf6;--sage:#dfeadf;--shadow:0 22px 60px rgba(86,66,54,.13)}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;color:var(--ink);background:linear-gradient(145deg,#faf4f2,#f1eee8)}
-body{min-height:100vh}.hidden{display:none!important}
+body{min-height:100vh}.hidden{display:none!important}.manual-open{overflow:hidden}
 .gate{min-height:100vh;display:grid;place-items:center;padding:28px 18px}.door{width:min(440px,100%);background:rgba(255,253,250,.9);border:1px solid var(--line);border-radius:34px;padding:34px 26px 26px;box-shadow:var(--shadow);text-align:center;backdrop-filter:blur(12px)}
 .crest{width:82px;height:82px;margin:0 auto 18px;border-radius:30px;display:grid;place-items:center;font-size:39px;background:#f4e7df;border:1px solid #ead6ca;box-shadow:inset 0 0 0 7px rgba(255,255,255,.4)}
 .kicker{font-size:9px;letter-spacing:.18em;font-weight:900;color:#a38888}.door h1{font-size:31px;line-height:1.05;margin:8px 0 9px;letter-spacing:-.04em}.door p{font-size:12px;line-height:1.7;color:var(--muted);margin:0 auto 22px;max-width:330px}
 .login{display:grid;gap:10px}.login input,.command-form input,.command-form select{width:100%;border:1px solid #e4d7cf;background:#fff;border-radius:16px;padding:12px 14px;font:inherit;font-size:13px;outline:none}.login input:focus,.command-form input:focus,.command-form select:focus{border-color:#b9aaa0;box-shadow:0 0 0 4px rgba(195,176,164,.15)}
 .login button,.appbar button,.command-form button{border:0;border-radius:16px;padding:12px 15px;background:#58615f;color:white;font:800 11px inherit;box-shadow:0 8px 20px rgba(69,78,76,.14)}.login button:disabled,.command-form button:disabled{opacity:.45}.status{min-height:20px;margin-top:13px;font-size:10px;color:#8b7d77}.status.error{color:#a75e58}.locknote{margin-top:18px;padding-top:15px;border-top:1px dashed #eaded6;font-size:9px!important}.mascots{font-size:22px;letter-spacing:.15em;margin-top:12px}
-.app{min-height:100vh}.appbar{position:sticky;top:0;z-index:40;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(250,246,242,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.appbar b{font-size:11px}.appbar span{font-size:9px;color:var(--muted)}.appbar-actions{display:flex;gap:6px;align-items:center}.appbar button,.appbar a{padding:8px 11px;border-radius:999px;font-size:9px;box-shadow:none;text-decoration:none;font-weight:800}.appbar a{background:#e8eee7;color:#536158;border:1px solid #d5dfd3}.appbar .ghost{background:#fff;color:#625c58;border:1px solid #e5d9d1}.atelier-frame{display:block;width:100%;min-height:calc(100vh - 48px);border:0;background:#f7f1ee}
+.app{min-height:100vh}.appbar{position:sticky;top:0;z-index:40;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(250,246,242,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.appbar b{font-size:11px}.appbar span{font-size:9px;color:var(--muted)}.appbar-actions{display:flex;gap:6px;align-items:center}.appbar button,.appbar a{padding:8px 11px;border-radius:999px;font-size:9px;box-shadow:none;text-decoration:none;font-weight:800}.appbar a{background:#e8eee7;color:#536158;border:1px solid #d5dfd3}.appbar .manual-button{background:#f4e9df;color:#66594f;border:1px solid #e6d8cd}.appbar .ghost{background:#fff;color:#625c58;border:1px solid #e5d9d1}.atelier-frame{display:block;width:100%;min-height:calc(100vh - 48px);border:0;background:#f7f1ee}
 .command-panel{position:fixed;z-index:60;left:50%;top:60px;transform:translateX(-50%);width:min(520px,calc(100% - 20px));padding:16px;background:rgba(255,253,250,.96);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);backdrop-filter:blur(14px)}.command-head{display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:12px}.command-head b{font-size:13px}.command-head small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.command-head button{border:0;background:transparent;font-size:18px;color:#7c736d}.command-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.command-form input{grid-column:1/-1}.command-form .primary{grid-column:1/-1}.command-form .quick{background:#f0e8df;color:#63584f;box-shadow:none}.command-status{min-height:18px;margin-top:8px;font-size:9px;color:var(--muted)}
-@media(max-width:520px){.gate{padding:18px 12px}.door{padding:29px 20px 22px;border-radius:28px}.door h1{font-size:28px}.command-form{grid-template-columns:1fr}.command-form input,.command-form .primary{grid-column:auto}.appbar-actions button:first-of-type{padding-inline:10px}.appbar a{padding-inline:9px}}
+.manual-backdrop{position:fixed;inset:0;z-index:70;background:rgba(63,55,50,.28);opacity:0;transition:opacity .23s ease;backdrop-filter:blur(2px)}.manual-backdrop.is-open{opacity:1}.manual-panel{position:fixed;right:0;top:0;bottom:0;z-index:80;width:min(450px,calc(100% - 22px));background:#fffdf9;border-left:1px solid var(--line);box-shadow:-18px 0 55px rgba(70,53,43,.16);transform:translateX(103%);transition:transform .23s ease;overflow:auto;overscroll-behavior:contain}.manual-panel.is-open{transform:translateX(0)}.manual-head{position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:rgba(255,253,249,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.manual-head .eyebrow{font-size:8px;font-weight:900;letter-spacing:.16em;color:#a28580}.manual-head h2{font-size:20px;margin:3px 0 0;letter-spacing:-.03em}.manual-close{border:0;background:#f3ebe5;color:#71665f;border-radius:999px;width:34px;height:34px;font-size:20px;line-height:1;cursor:pointer}.manual-body{padding:16px 16px 34px}.manual-intro{font-size:11px;line-height:1.75;color:#706862;margin:0 0 14px}.manual-callout{border:1px solid #eaded6;background:#faf3ed;border-radius:17px;padding:12px 13px;font-size:10px;line-height:1.65;margin-bottom:15px}.manual-section{margin:18px 0}.manual-section h3{font-size:12px;margin:0 0 9px}.state-list{display:grid;gap:7px}.state-card{display:grid;grid-template-columns:34px 1fr;gap:9px;padding:10px 11px;border:1px solid #eaded6;border-radius:14px;background:#fff}.state-icon{font-size:20px;line-height:1.2}.state-card b{display:block;font-size:10px;margin-bottom:2px}.state-card p{margin:0;font-size:9px;line-height:1.55;color:#746b65}.manual-steps{display:grid;gap:7px}.manual-step{padding:10px 11px;border-radius:14px;background:#f7f1ec;border:1px solid #eaded6;font-size:9px;line-height:1.6}.manual-step b{font-size:10px}.manual-kbd{display:inline-block;border:1px solid #dbcec5;background:#fff;border-radius:7px;padding:2px 6px;font-weight:900;font-size:9px;box-shadow:0 2px 0 #e6dbd3}.manual-note{font-size:9px;line-height:1.65;color:#786e68;padding-top:11px;border-top:1px dashed #e5d8d0}.manual-link{display:block;text-align:center;margin-top:13px;background:#596360;color:#fff!important;text-decoration:none;border-radius:13px;padding:10px 12px;font-size:9px;font-weight:900}
+@media(max-width:520px){.gate{padding:18px 12px}.door{padding:29px 20px 22px;border-radius:28px}.door h1{font-size:28px}.command-form{grid-template-columns:1fr}.command-form input,.command-form .primary{grid-column:auto}.appbar-actions{gap:4px}.appbar-actions button,.appbar-actions a{padding-inline:8px}.manual-panel{width:calc(100% - 12px)}.manual-head{padding:15px}.manual-body{padding:14px 13px 28px}}
 </style>
 </head>
 <body>
@@ -41,6 +42,7 @@ body{min-height:100vh}.hidden{display:none!important}
   <header class="appbar">
     <div><b>🏛️ AFOC</b> <span id="member-role"></span></div>
     <div class="appbar-actions">
+      <button id="open-manual" class="manual-button" type="button">📘 使い方</button>
       <a href="./connect.html" target="_blank" rel="noopener">🔌 接続</a>
       <button id="open-command" type="button">📮 指示する</button>
       <button id="logout" class="ghost" type="button">退出</button>
@@ -60,9 +62,60 @@ body{min-height:100vh}.hidden{display:none!important}
   <div id="command-status" class="command-status"></div>
 </section>
 
+<div id="manual-backdrop" class="manual-backdrop hidden" aria-hidden="true"></div>
+<aside id="manual-panel" class="manual-panel hidden" aria-hidden="true" aria-labelledby="manual-title">
+  <header class="manual-head">
+    <div><div class="eyebrow">AFOC QUICK GUIDE · 2026-09-14</div><h2 id="manual-title">📘 使い方</h2></div>
+    <button id="close-manual" class="manual-close" type="button" aria-label="マニュアルを閉じる">×</button>
+  </header>
+  <div class="manual-body">
+    <p class="manual-intro">「この表示のとき何をする？」をここで確認できるクイックマニュアル。迷ったらまず状態アイコンを見る。</p>
+
+    <div class="manual-callout"><b>いちばん大事</b><br>📮 <b>指示あり・起動待ち</b>になったら、対応するChatGPT教材開発室を開いて <span class="manual-kbd">👍➡️</span> を1回送る。Live接続文を貼り直す必要はない。</div>
+
+    <section class="manual-section">
+      <h3>状態の見方</h3>
+      <div class="state-list">
+        <div class="state-card"><div class="state-icon">🟢</div><div><b>稼働中</b><p>最近heartbeatがあり、通常作業中。基本は見守ってOK。</p></div></div>
+        <div class="state-card"><div class="state-icon">💤</div><div><b>休憩中 / quiet</b><p>しばらく新しい報告がないだけ。故障ではない。次へ進めたい時だけ指示を出す。</p></div></div>
+        <div class="state-card"><div class="state-icon">📮</div><div><b>指示あり・起動待ち</b><p>AFOCには指示が届いているが、ChatGPT開発室の次ターン待ち。対応する開発室で <span class="manual-kbd">👍➡️</span>。</p></div></div>
+        <div class="state-card"><div class="state-icon">▶️</div><div><b>指示処理中</b><p>開発室が指示をclaim済み。もう働いているので放置でOK。</p></div></div>
+        <div class="state-card"><div class="state-icon">⚠️</div><div><b>要確認</b><p>stalled / blocked / ROOM FULL / handoff など。本当に確認が必要な状態。🐅🐥をタップして詳細を見る。</p></div></div>
+        <div class="state-card"><div class="state-icon">✅</div><div><b>完了</b><p>実装単位が完了。DONE NOTESの付箋を押すとNotion正本を開ける。</p></div></div>
+      </div>
+    </section>
+
+    <section class="manual-section">
+      <h3>よく使う操作</h3>
+      <div class="manual-steps">
+        <div class="manual-step"><b>📮 1室だけ次へ</b><br>上部の「📮 指示する」→ Facultyを選択 →「👍 次の実装へ」→送信。</div>
+        <div class="manual-step"><b>🐅🐥 みんな次へ</b><br>「📮 指示する」の中にある「みんな次へ進んで！」を使う。同じ指示がqueued / claimed済みの室には重複投入しない。</div>
+        <div class="manual-step"><b>🔌 接続</b><br>初回Live接続、またはRoom Full等で新しいChatGPT開発室へ移った時の接続文を取得する。</div>
+        <div class="manual-step"><b>👀 詳細を見る</b><br>職員室の🐅🐥をタップ。現在地、工程、次、heartbeat、開発室、指示キュー、Notion正本を確認できる。</div>
+        <div class="manual-step"><b>🟨 完成物を見る</b><br>DONE NOTESの黄色い付箋をタップ。対応するNotion正本へ移動する。</div>
+      </div>
+    </section>
+
+    <section class="manual-section">
+      <h3>困ったとき</h3>
+      <div class="manual-steps">
+        <div class="manual-step"><b>💤 quietだけど進めたい</b><br>AFOCで指示を出す → 📮起動待ちになったら対応するChatGPT開発室で <span class="manual-kbd">👍➡️</span>。</div>
+        <div class="manual-step"><b>📚 ROOM FULL</b><br>旧室のCheckpointを使って新しいChatGPT開発室へ引継ぎ、必要なら「🔌 接続」からそのラインを再接続する。</div>
+        <div class="manual-step"><b>🔴 stalled / ⚠️ blocked</b><br>Facultyをタップして「次」「同期メモ」「指示」を確認。むやみに完了扱いにしない。</div>
+      </div>
+    </section>
+
+    <div class="manual-callout"><b>AFOCができること / まだできないこと</b><br>AFOCから指示をキューへ送ることはできる。ただし、休止中の既存ChatGPTチャットに外部から新しいターンを自動発生させることはまだできない。📮起動待ちだけは、対応する開発室で1回メッセージを送って起こす。</div>
+
+    <p class="manual-note"><b>正本ルール</b>｜Notionが正式記録、Supabaseは運用状態、AFOCは可視化・管制画面。表示とNotionが食い違う場合はNotion正本を優先する。</p>
+    <a class="manual-link" href="https://app.notion.com/p/3dac70c3c07681d6bb9bc2f4bf6bfe88?pvs=204" target="_blank" rel="noopener noreferrer">↗ 教材開発室同期プロトコルを開く</a>
+  </div>
+</aside>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./afoc-config.js"></script>
 <script src="./secure.js"></script>
 <script src="./secure-ops.js"></script>
+<script src="./manual.js"></script>
 </body>
 </html>
