@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AFOC Atelier — Live</title>
+<style>
+html,body{margin:0;min-height:100%;background:#f7f1ee}
+#atelier{display:block;width:100%;border:0;min-height:100vh;background:#f7f1ee}
+</style>
+</head>
+<body>
+<iframe id="atelier" src="./atelier.html?bubble=side" title="Atlas Faculty Atelier"></iframe>
+<script>
+const frame=document.getElementById('atelier');
+let state=null;
+let selectedRoomId=null;
+
+function esc(value){
+  return String(value??'')
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+}
+
+function resize(){
+  try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(_){ }
+}
+
+function age(value){
+  if(!value)return '未記録';
+  const t=new Date(value).getTime();
+  if(!Number.isFinite(t))return '未記録';
+  const m=Math.max(0,Math.floor((Date.now()-t)/60000));
+  if(m<1)return 'たった今';
+  if(m<60)return `${m}分前`;
+  const h=Math.floor(m/60);
+  if(h<24)return `${h}時間前`;
+  return `${Math.floor(h/24)}日前`;
+}
+
+function safeNotion(value){
+  try{
+    const u=new URL(value);
+    if(u.protocol!=='https:')return '';
+    if(u.hostname==='app.notion.com'||u.hostname==='notion.so'||u.hostname.endsWith('.notion.so'))return u.href;
+  }catch(_){ }
+  return '';
+}
+
+function roomHealth(id){return (state?.health||[]).find(x=>x.id===id)||null}
+function roomCommands(id){return (state?.commands||[]).filter(x=>x.room_id===id)}
+function roomInstance(id){
+  const xs=(state?.instances||[]).filter(x=>x.room_id===id);
+  return xs.find(x=>x.status==='active')||xs[0]||null;
+}
+
+function sourceLabel(room){
+  if(room.state_source==='room_heartbeat')return '⚡ 開発室Live';
+  if(room.state_source==='notion_canon')return '📚 Notion正本';
+  return '⚪ 未検証';
+}
+
+function statusLabel(value){
+  return ({waiting:'待機',ready:'READY',working:'実装中',checking:'確認中',approval_wait:'承認待ち',done:'完了',blocked:'BLOCKED',stalled:'STALLED',room_full:'ROOM FULL',handoff:'引継ぎ中',resuming:'再開中'})[value]||value||'未同期';
+}
+
+function healthLabel(value){
+  return ({healthy:'🟢 healthy',quiet:'🟡 quiet',stalled:'🔴 stalled',unknown:'⚪ live未接続',waiting:'⏳ waiting',done:'✅ done',blocked:'⚠️ blocked',room_full:'📚 room full',handoff:'📦 handoff'})[value]||`⚪ ${value||'live未接続'}`;
+}
+
+function bubbleText(room,kind){
+  const icon=kind==='chick'?'🐥':'🐅';
+  const current=[room.current_course_code,room.current_unit].filter(Boolean).join('-');
+  const health=roomHealth(room.id)?.health;
+  const commands=roomCommands(room.id);
+  const claimed=commands.filter(x=>x.status==='claimed').length;
+  const queued=commands.filter(x=>x.status==='queued').length;
+  let text;
+  if(health==='stalled'&&!['done','waiting'].includes(room.status)) text='💤 STALLED';
+  else{
+    const labels={waiting:'⏳ 待機',ready:'✨ READY',working:`${icon} ${current?current+' ':''}ﾓﾘﾓﾘ…`,checking:'🔎 確認中',approval_wait:'🟨 承認待ち',done:'✅ 完了',blocked:'⚠️ BLOCKED',stalled:'💤 STALLED',room_full:'📚💦 ROOM FULL',handoff:'📦 引継ぎ中',resuming:'✨ 再開中'};
+    text=labels[room.status]||`${icon} ${current?current+' ':''}ﾓﾘﾓﾘ…`;
+    if(health==='quiet')text+=' · quiet';
+  }
+  if(claimed)text+=` 📮▶${claimed}`;
+  if(queued)text+=` 📮${queued}`;
+  return text;
+}
+
+function ensureDetail(doc){
+  let card=doc.getElementById('afoc-live-detail');
+  if(card)return card;
+  card=doc.createElement('section');
+  card.id='afoc-live-detail';
+  card.hidden=true;
+  card.addEventListener('click',e=>e.stopPropagation());
+  doc.body.appendChild(card);
+  doc.addEventListener('click',e=>{
+    if(!card.hidden&&!e.target.closest('.pod')){
+      card.hidden=true; selectedRoomId=null;
+    }
+  });
+  return card;
+}
+
+function showDetail(roomId,pod){
+  const doc=frame.contentDocument;
+  if(!doc||!state)return;
+  const room=(state.rooms||[]).find(x=>x.id===roomId);
+  if(!room)return;
+  const health=roomHealth(roomId);
+  const commands=roomCommands(roomId);
+  const instance=roomInstance(roomId);
+  const card=ensureDetail(doc);
+  const current=[room.current_course_code,room.current_unit].filter(Boolean).join('-')||'未同期';
+  const notion=safeNotion(room.notion_page_url);
+  const liveAt=health?.last_heartbeat_at||room.last_heartbeat_at;
+  const sourceTime=room.state_source==='notion_canon'?room.canon_checked_at:liveAt;
+  const active=commands.find(x=>x.status==='claimed');
+  const queued=commands.filter(x=>x.status==='queued');
+
+  const commandHtml=active||queued.length
+    ? `<div class="cmds">${active?`<div class="cmd active">▶ ${esc(active.instruction)} <small>claimed</small></div>`:''}${queued.slice(0,4).map(x=>`<div class="cmd">📮 ${esc(x.instruction)} <small>queued</small></div>`).join('')}</div>`
+    : '<span class="muted">なし</span>';
+
+  card.innerHTML=`
+    <button class="close" aria-label="閉じる">×</button>
+    <div class="kicker">${esc(room.faculty_code)} · ${room.material_type==='reading'?'READING':'LECTURE'}</div>
+    <h3>${esc(room.faculty_name)} ${room.material_type==='reading'?'Reading Book':'Lecture Book'}</h3>
+    <div class="pills"><span>${esc(statusLabel(room.status))}</span><span>${esc(healthLabel(health?.health))}</span><span class="source ${esc(room.state_source)}">${esc(sourceLabel(room))}</span></div>
+    <dl>
+      <div><dt>現在地</dt><dd>${esc(current)}</dd></div>
+      <div><dt>工程</dt><dd>${esc(room.current_phase||'未同期')}</dd></div>
+      <div><dt>次</dt><dd>${esc(room.next_step||'未同期')}</dd></div>
+      <div><dt>情報源</dt><dd>${esc(sourceLabel(room))} · ${esc(age(sourceTime))}</dd></div>
+      <div><dt>開発室</dt><dd>${esc(instance?.room_label||room.room_name||'Live Room未登録')}${instance?` · ${esc(instance.status)}`:''}</dd></div>
+      <div><dt>Live</dt><dd>${liveAt?esc(age(liveAt)):'heartbeat未接続'}</dd></div>
+      <div><dt>指示</dt><dd>${commandHtml}</dd></div>
+      ${room.sync_note?`<div><dt>同期メモ</dt><dd class="syncnote">${esc(room.sync_note)}</dd></div>`:''}
+    </dl>
+    ${notion?`<a class="notion" href="${esc(notion)}" target="_blank" rel="noopener noreferrer">↗ Notion正本を開く</a>`:''}
+  `;
+  card.querySelector('.close').onclick=()=>{card.hidden=true;selectedRoomId=null};
+
+  const rect=pod.getBoundingClientRect();
+  const width=Math.min(360,doc.documentElement.clientWidth-24);
+  let left=rect.left+rect.width/2-width/2;
+  left=Math.max(12,Math.min(left,doc.documentElement.clientWidth-width-12));
+  card.style.width=width+'px';
+  card.style.left=left+'px';
+  card.style.top=(rect.bottom+12)+'px';
+  card.hidden=false;
+  selectedRoomId=roomId;
+  setTimeout(resize,10);
+}
+
+function wirePods(doc){
+  doc.querySelectorAll('.pod').forEach(pod=>{
+    if(pod.dataset.afocLive==='1')return;
+    const worker=pod.querySelector('.worker[id^="worker-"]');
+    if(!worker)return;
+    const id=worker.id.replace('worker-','');
+    pod.dataset.afocLive='1';
+    pod.tabIndex=0;
+    pod.setAttribute('role','button');
+    pod.setAttribute('aria-label',`${id} の詳細を開く`);
+    const open=e=>{e.stopPropagation();showDetail(id,pod)};
+    pod.addEventListener('click',open);
+    pod.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(e)}});
+  });
+}
+
+function quickStats(doc,rooms){
+  const activeStates=['ready','working','checking','approval_wait','resuming','handoff'];
+  const active=rooms.filter(x=>activeStates.includes(x.status)).length;
+  const canon=rooms.filter(x=>x.state_source==='notion_canon').length;
+  const live=rooms.filter(x=>x.state_source==='room_heartbeat').length;
+  const waiting=rooms.filter(x=>x.status==='waiting').length;
+  const boxes=doc.querySelectorAll('.quick>div');
+  const vals=[String(active),`📚 ${canon}`,`⚡ ${live}`,String(waiting)];
+  boxes.forEach((box,i)=>{const b=box.querySelector('b');if(b&&vals[i]!=null)b.textContent=vals[i]});
+}
+
+function apply(payload){
+  const doc=frame.contentDocument;
+  if(!doc||!payload)return;
+  state=payload;
+  const rooms=Array.isArray(state.rooms)?state.rooms:[];
+  wirePods(doc);
+  quickStats(doc,rooms);
+
+  rooms.forEach(room=>{
+    const worker=doc.getElementById('worker-'+room.id);
+    if(!worker)return;
+    const kind=worker.classList.contains('chick')?'chick':'tiger';
+    const bubble=worker.querySelector('.bubble');
+    if(bubble)bubble.textContent=bubbleText(room,kind);
+    worker.dataset.status=room.status||'';
+    worker.dataset.health=roomHealth(room.id)?.health||'';
+    worker.dataset.source=room.state_source||'';
+    const name=worker.closest('.pod')?.querySelector('.name');
+    if(name)name.textContent=`${room.faculty_name||room.faculty_code} ${room.material_type==='reading'?'Reading':'Lecture'}`;
+  });
+
+  const liveEl=doc.querySelector('.live');
+  if(liveEl){
+    const live=rooms.filter(x=>x.state_source==='room_heartbeat').length;
+    const canon=rooms.filter(x=>x.state_source==='notion_canon').length;
+    const attention=(state.health||[]).filter(x=>['quiet','stalled','blocked','room_full','handoff'].includes(x.health)).length;
+    liveEl.innerHTML=`<i></i>⚡${live} live · 📚${canon} canon${attention?` · ${attention}要確認`:''}`;
+  }
+
+  const notes=doc.getElementById('notes');
+  if(notes){
+    notes.innerHTML='';
+    (state.notes||[]).slice(0,6).forEach(note=>{
+      const a=doc.createElement('a');
+      a.className='note'; a.textContent='✓ '+note.title;
+      a.href=note.notion_page_url; a.target='_blank'; a.rel='noopener noreferrer';
+      a.title=note.subtitle||'Notion正本を開く';
+      a.style.textDecoration='none'; a.style.color='inherit';
+      notes.appendChild(a);
+    });
+  }
+
+  if(selectedRoomId){
+    const pod=doc.getElementById('worker-'+selectedRoomId)?.closest('.pod');
+    if(pod)showDetail(selectedRoomId,pod);
+  }
+  resize();
+}
+
+frame.addEventListener('load',()=>{
+  const doc=frame.contentDocument;
+  const css=doc.createElement('style');
+  css.textContent=`
+    .bubble{top:18px!important;transform:none!important;z-index:30}
+    .bubble:after{top:50%!important;bottom:auto!important;width:8px!important;height:8px!important;background:#fffdf9!important}
+    .pod[role="button"]{cursor:pointer;outline:none}.pod[role="button"]:focus-visible{box-shadow:inset 0 0 0 2px rgba(91,100,98,.35)}
+    .worker[data-health="stalled"]{filter:grayscale(.2);opacity:.72}.worker[data-health="quiet"]{opacity:.86}
+    .worker[data-source="room_heartbeat"]{filter:drop-shadow(0 0 5px rgba(101,143,113,.16))}
+    .worker[data-status="room_full"] .bubble,.worker[data-status="blocked"] .bubble{border-style:dashed!important}
+    #afoc-live-detail{position:absolute;z-index:9999;background:rgba(255,253,250,.985);border:1px solid #e4d6cc;border-radius:20px;padding:15px;box-shadow:0 18px 42px rgba(70,50,38,.2);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:#4b4642;text-align:left}
+    #afoc-live-detail[hidden]{display:none!important}#afoc-live-detail .close{position:absolute;right:9px;top:8px;border:0;background:transparent;font-size:19px;color:#8a7c75;cursor:pointer}#afoc-live-detail .kicker{font-size:7px;font-weight:900;letter-spacing:.14em;color:#9a827d;padding-right:24px}#afoc-live-detail h3{font-size:14px;margin:3px 26px 9px 0}#afoc-live-detail .pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}#afoc-live-detail .pills span{font-size:7px;font-weight:900;background:#f4ebe4;border:1px solid #e9dcd3;border-radius:999px;padding:5px 7px}#afoc-live-detail .pills .source.room_heartbeat{background:#e6f1e6;border-color:#cadfca}#afoc-live-detail .pills .source.notion_canon{background:#e8edf5;border-color:#d5ddeb}#afoc-live-detail dl{display:grid;gap:6px;margin:0}#afoc-live-detail dl>div{display:grid;grid-template-columns:66px 1fr;gap:8px;align-items:start}#afoc-live-detail dt{font-size:7px;color:#9a8a82;font-weight:900}#afoc-live-detail dd{margin:0;font-size:8px;line-height:1.45;font-weight:700;overflow-wrap:anywhere}#afoc-live-detail .muted{color:#9b918b;font-weight:500}#afoc-live-detail .cmds{display:grid;gap:4px}#afoc-live-detail .cmd{background:#fff5cf;border-radius:7px;padding:5px 6px;font-size:7px;font-weight:800}#afoc-live-detail .cmd.active{background:#e9f2e7}#afoc-live-detail .cmd small{opacity:.58;margin-left:4px}#afoc-live-detail .syncnote{background:#fff1e5;border-radius:8px;padding:6px}#afoc-live-detail .notion{display:block;margin-top:11px;text-align:center;text-decoration:none;background:#5b6462;color:#fff;border-radius:11px;padding:8px 10px;font-size:8px;font-weight:900}
+    @media(min-width:721px){
+      .pod:nth-child(4n+1) .bubble,.pod:nth-child(4n+2) .bubble{left:calc(50% + 38px)!important;right:auto!important}
+      .pod:nth-child(4n+3) .bubble,.pod:nth-child(4n+4) .bubble{right:calc(50% + 38px)!important;left:auto!important}
+    }
+    @media(max-width:720px){
+      .pod:nth-child(odd) .bubble{left:calc(50% + 30px)!important;right:auto!important}
+      .pod:nth-child(even) .bubble{right:calc(50% + 30px)!important;left:auto!important}
+    }
+  `;
+  doc.head.appendChild(css);
+  wirePods(doc);
+  if(state)apply(state);
+  resize();
+  try{new ResizeObserver(resize).observe(doc.body)}catch(_){ }
+  setTimeout(resize,500);
+});
+
+window.addEventListener('message',event=>{
+  if(event.origin!==window.location.origin)return;
+  if(event.data?.type!=='afoc-state')return;
+  apply(event.data.payload);
+});
+window.addEventListener('resize',resize);
+</script>
+</body>
+</html>
