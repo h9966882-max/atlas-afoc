@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f1ee">
+<title>AFOC｜Live接続キット</title>
+<style>
+:root{--ink:#474441;--muted:#817a74;--line:#e8dad1;--paper:#fffdf9;--shadow:0 18px 48px rgba(76,57,46,.12)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:linear-gradient(145deg,#faf4f2,#f2eee8)}
+body{padding:18px}.wrap{max-width:820px;margin:0 auto}.top{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:16px}.top h1{font-size:24px;margin:0 0 5px}.top p{font-size:11px;line-height:1.7;color:var(--muted);margin:0}.back{font-size:10px;text-decoration:none;color:#5d5a56;background:white;border:1px solid var(--line);padding:9px 12px;border-radius:999px;white-space:nowrap}
+.notice{background:rgba(255,253,249,.9);border:1px solid var(--line);border-radius:20px;padding:13px 15px;margin-bottom:15px;box-shadow:var(--shadow);font-size:10px;line-height:1.65}.notice b{font-size:11px}.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pill{font-size:9px;font-weight:800;border-radius:999px;padding:5px 8px;background:#f3ece7}.pill.live{background:#e6f1e6}.pill.canon{background:#e9eef6}
+#status{font-size:11px;color:var(--muted);padding:12px 2px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.card{background:rgba(255,253,249,.95);border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:var(--shadow)}.head{display:flex;justify-content:space-between;gap:10px;align-items:start}.name{font-size:13px;font-weight:900}.sub{font-size:9px;color:var(--muted);margin-top:2px}.source{font-size:8px;font-weight:900;border-radius:999px;padding:5px 7px;white-space:nowrap;background:#e9eef6}.source.live{background:#e6f1e6}.cursor{margin:11px 0 9px;padding:9px 10px;background:#f8f2ed;border-radius:12px}.cursor b{display:block;font-size:10px;margin-bottom:3px}.cursor span{display:block;font-size:9px;color:#6f6863;line-height:1.55}.next{font-size:9px;line-height:1.55;margin:0 0 11px}.buttons{display:grid;grid-template-columns:1fr auto;gap:7px}.copy,.preview{border:0;border-radius:13px;padding:10px 11px;font:800 10px inherit;cursor:pointer}.copy{background:#596360;color:white}.preview{background:#eee5de;color:#625a55}.copy.done{background:#738871}.prompt{display:none;margin-top:9px;background:#f3efe9;border:1px dashed #ddcec3;border-radius:12px;padding:9px;font-size:8px;line-height:1.55;white-space:pre-wrap;max-height:260px;overflow:auto}.prompt.open{display:block}.empty{grid-column:1/-1;padding:24px;text-align:center;color:var(--muted);font-size:11px;background:white;border-radius:20px;border:1px solid var(--line)}
+@media(max-width:640px){body{padding:12px}.top h1{font-size:20px}.grid{grid-template-columns:1fr}.buttons{grid-template-columns:1fr auto}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div><h1>🔌 Live接続キット</h1><p>教材開発室をAFOCへ最初の1回だけ接続するための文面を作る。<br>貼り付け後は、その開発室自身がCheckpointを返す運用へ移る。</p></div>
+    <a class="back" href="./secure.html">← AFOCへ</a>
+  </header>
+  <section class="notice">
+    <b>接続のしかた</b>｜対象Facultyの「接続文をコピー」→ その教材開発チャットへ貼るだけ。<br>
+    AFOCの表示値を正本とはみなさず、接続時に必ずNotion正本を再確認する。
+    <div class="legend"><span class="pill canon">📚 Notion正本同期</span><span class="pill live">⚡ すでにLive</span></div>
+  </section>
+  <div id="status">🔐 AFOCログイン状態を確認中…</div>
+  <section id="grid" class="grid"></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./afoc-config.js"></script>
+<script>
+(() => {
+  const config=window.AFOC_CONFIG||{};
+  const status=document.getElementById('status');
+  const grid=document.getElementById('grid');
+  const protocolUrl='https://app.notion.com/p/3dac70c3c07681d6bb9bc2f4bf6bfe88?pvs=204';
+  const projectId='wvsogabeckhuhcqelpja';
+  if(!config.supabaseUrl||!config.supabasePublishableKey){status.textContent='AFOC設定が見つからないよ。';return}
+  const client=window.supabase.createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{persistSession:true,autoRefreshToken:true}});
+
+  function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+  function material(room){return room.material_type==='reading'?'Reading Book':'Lecture Book'}
+  function source(room){return room.state_source==='room_heartbeat'?'⚡ Live':'📚 正本同期'}
+  function promptFor(room){
+    const current=[room.current_course_code,room.current_unit].filter(Boolean).join(' / ')||'AFOC表示上は未確定';
+    return `AFOC Live接続を開始してください。\n\n対象開発ラインID：${room.id}\n対象：${room.faculty_name} ${material(room)}\nAFOC表示上の現在地：${current}\nAFOC表示上の次工程：${room.next_step||'未確定'}\n\n正式な同期手順：\n1. Notionの「AFOC｜教材開発室同期プロトコル v1.0」を取得して確認する。\n   ${protocolUrl}\n2. このチャット履歴だけを正式な再開根拠にせず、当該教材ラインの最新Notion正本・最新Checkpointを確認する。AFOC表示とNotionが食い違う場合はNotion正本を優先する。\n3. SupabaseのDialyプロジェクト（project_id: ${projectId}）で、確認済みの現在地を使って public.afoc_open_shift(...) を実行し、この部屋を line_id=${room.id} のLive Roomとして登録する。room_labelには現在のチャットルームを識別できる短い名称を入れる。\n4. afoc_open_shift の戻り値に command がある場合だけ内容を確認する。古い指示、Notion正本と競合する指示、この会話での最新の光沙の明示指示と競合する指示は盲目的に実行しない。\n5. 以後、意味のある制作単位を越えるたびに afoc_checkpoint_shift(...) で現在地・完了地点・次の一手をAFOCへ同期する。\n6. Notion正本への保存と必要QAを終えた実装単位は afoc_complete_shift(...) で完了報告する。ライン全体の最終完了でない限り p_line_done=false とする。\n7. チャット上限・Room Full時は afoc_handoff_room(...) でCheckpointを残してから新しい部屋へ引き継ぐ。\n\n禁止：推測の進捗率、未保存の完了扱い、教材制作を学生の受講・合格・単位記録へ転記すること。\n\n接続が通ったら、AFOC上で state_source=room_heartbeat（⚡ Live）になったことまで確認してから通常制作へ戻ってください。`;
+  }
+
+  async function copyText(text,button){
+    try{
+      await navigator.clipboard.writeText(text);
+      const old=button.textContent;button.textContent='✅ コピーした';button.classList.add('done');
+      setTimeout(()=>{button.textContent=old;button.classList.remove('done')},1800);
+    }catch(_){
+      const area=document.createElement('textarea');area.value=text;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
+      button.textContent='✅ コピーした';setTimeout(()=>button.textContent='接続文をコピー',1800);
+    }
+  }
+
+  function render(rooms){
+    grid.innerHTML='';
+    if(!rooms.length){grid.innerHTML='<div class="empty">接続対象の開発ラインがないよ。</div>';return}
+    rooms.forEach(room=>{
+      const card=document.createElement('article');card.className='card';
+      const live=room.state_source==='room_heartbeat';
+      const current=[room.current_course_code,room.current_unit].filter(Boolean).join(' · ')||'現在地未確定';
+      const text=promptFor(room);
+      card.innerHTML=`<div class="head"><div><div class="name">${room.material_type==='reading'?'🐥':'🐅'} ${esc(room.faculty_name)} ${esc(material(room))}</div><div class="sub">${esc(room.id)}</div></div><span class="source ${live?'live':''}">${source(room)}</span></div><div class="cursor"><b>${esc(current)}</b><span>${esc(room.current_phase||'工程未同期')}</span></div><p class="next">次：${esc(room.next_step||'未同期')}</p><div class="buttons"><button class="copy">${live?'接続文を再コピー':'接続文をコピー'}</button><button class="preview">👀</button></div><pre class="prompt"></pre>`;
+      const prompt=card.querySelector('.prompt');prompt.textContent=text;
+      card.querySelector('.copy').onclick=e=>copyText(text,e.currentTarget);
+      card.querySelector('.preview').onclick=()=>prompt.classList.toggle('open');
+      grid.appendChild(card);
+    });
+  }
+
+  (async()=>{
+    const {data:sessionData}=await client.auth.getSession();
+    const session=sessionData?.session;
+    if(!session){status.innerHTML='🔒 AFOCにログインしてから使ってね。 <a href="./secure.html">ログイン画面へ</a>';return}
+    const {data:member,error:memberError}=await client.from('afoc_members').select('role,active').eq('user_id',session.user.id).eq('active',true).maybeSingle();
+    if(memberError||!member){status.textContent='このアカウントはAFOCメンバーとして確認できなかったよ。';return}
+    const {data,error}=await client.from('development_rooms').select('id,faculty_code,faculty_name,material_type,status,current_course_code,current_unit,current_phase,next_step,is_unlocked,state_source').eq('is_unlocked',true).neq('status','done').order('faculty_code',{ascending:true}).order('material_type',{ascending:true});
+    if(error){console.error(error);status.textContent='開発ラインを取得できなかったよ。';return}
+    const rooms=data||[];
+    const live=rooms.filter(r=>r.state_source==='room_heartbeat').length;
+    status.textContent=`接続対象 ${rooms.length}ライン · ⚡ Live ${live}`;
+    render(rooms);
+  })();
+})();
+</script>
+</body>
+</html>
