@@ -13,10 +13,17 @@ html,body{margin:0;min-height:100%;background:#f7f1ee}
 <iframe id="atelier" src="./atelier.html?bubble=side" title="Atlas Faculty Atelier"></iframe>
 <script>
 const frame=document.getElementById('atelier');
+const roomOrder=['phl-lb','phl-rb','rel-rb','his-lb','psy-lb','str-lb','eco-lb','bus-lb'];
 let state=null;
 let selectedRoomId=null;
 let bubbleRotationIndex=0;
 let bubbleRotationTimer=null;
+let completionInitialized=false;
+let knownCompletionIds=new Set();
+let suppressedNoteIds=new Set();
+let completionQueue=[];
+let completionPlaying=false;
+let completionWorkerId=null;
 
 function esc(value){
   return String(value??'')
@@ -130,6 +137,11 @@ function refreshBubbleVisibility(doc){
     chosen.push(entry); usedRows.add(entry.row); return true;
   };
 
+  if(completionWorkerId){
+    const completionEntry=entries.find(entry=>entry.room.id===completionWorkerId);
+    addEntry(completionEntry);
+  }
+
   entries.filter(entry=>isAttention(entry.room)).forEach(addEntry);
 
   const pool=entries.filter(entry=>!chosen.includes(entry));
@@ -156,6 +168,7 @@ function ensureDetail(doc){
   if(card)return card;
   card=doc.createElement('section');
   card.id='afoc-live-detail';
+  card.className='afoc-detail';
   card.hidden=true;
   card.addEventListener('click',e=>e.stopPropagation());
   doc.body.appendChild(card);
@@ -237,17 +250,154 @@ function wirePods(doc){
 function quickStats(doc,rooms){
   const activeStates=['ready','working','checking','approval_wait','resuming','handoff'];
   const active=rooms.filter(x=>activeStates.includes(x.status)).length;
-  const canon=rooms.filter(x=>x.state_source==='notion_canon').length;
+  const canon=rooms.filter(x=>Boolean(x.canon_checked_at)).length;
   const live=rooms.filter(x=>x.state_source==='room_heartbeat').length;
   const waiting=rooms.filter(x=>x.status==='waiting').length;
   const boxes=doc.querySelectorAll('.quick>div');
   const vals=[String(active),`📚 ${canon}`,`⚡ ${live}`,String(waiting)];
-  boxes.forEach((box,i)=>{const b=box.querySelector('b');if(b&&vals[i]!=null)b.textContent=vals[i]});
+  const labels=['稼働中','正本確認済み','Live接続','前工程待ち'];
+  boxes.forEach((box,i)=>{
+    const b=box.querySelector('b');
+    const span=box.querySelector('span');
+    if(b&&vals[i]!=null)b.textContent=vals[i];
+    if(span&&labels[i]!=null)span.textContent=labels[i];
+  });
+}
+
+function renderNotes(doc,notesList){
+  const notes=doc?.getElementById('notes');
+  if(!notes)return;
+  notes.innerHTML='';
+  (notesList||[])
+    .filter(note=>!suppressedNoteIds.has(note.id))
+    .slice(0,6)
+    .forEach(note=>{
+      const a=doc.createElement('a');
+      a.className='note';
+      a.textContent='✓ '+note.title;
+      a.href=note.notion_page_url;
+      a.target='_blank';
+      a.rel='noopener noreferrer';
+      a.title=note.subtitle||'Notion正本を開く';
+      a.style.textDecoration='none';
+      a.style.color='inherit';
+      notes.appendChild(a);
+    });
+}
+
+function registerCompletionEvents(notesList){
+  const chronological=[...(notesList||[])].sort((a,b)=>new Date(a.completed_at)-new Date(b.completed_at));
+  if(!completionInitialized){
+    chronological.forEach(note=>knownCompletionIds.add(note.id));
+    completionInitialized=true;
+    return;
+  }
+
+  const fresh=chronological.filter(note=>!knownCompletionIds.has(note.id)&&roomOrder.includes(note.room_id));
+  fresh.forEach(note=>{
+    knownCompletionIds.add(note.id);
+    suppressedNoteIds.add(note.id);
+    completionQueue.push(note);
+  });
+  if(fresh.length)drainCompletionQueue();
+}
+
+async function animateCompletionNote(note){
+  const doc=frame.contentDocument;
+  const worker=doc?.getElementById('worker-'+note.room_id);
+  const done=doc?.getElementById('donezone');
+  const room=doc?.getElementById('room');
+  if(!doc||!worker||!done||!room){
+    suppressedNoteIds.delete(note.id);
+    renderNotes(doc,state?.notes||[]);
+    return;
+  }
+
+  completionWorkerId=note.room_id;
+  refreshBubbleVisibility(doc);
+
+  const bubble=worker.querySelector('.bubble');
+  const roomState=(state?.rooms||[]).find(x=>x.id===note.room_id);
+  const kind=worker.classList.contains('chick')?'chick':'tiger';
+  const workerRect=worker.getBoundingClientRect();
+  const doneRect=done.getBoundingClientRect();
+  const dx=doneRect.left+doneRect.width/2-(workerRect.left+workerRect.width/2);
+  const dy=doneRect.top+22-workerRect.top;
+  const scale=(frame.contentWindow?.innerWidth||window.innerWidth)<=720?.88:1;
+
+  worker.classList.remove('working');
+  worker.classList.add('carrying');
+  worker.style.zIndex=50;
+  if(bubble)bubble.textContent='📄 完了！';
+  await new Promise(r=>setTimeout(r,420));
+
+  worker.classList.add('walking');
+  const go=worker.animate([
+    {transform:`translateX(-50%) scale(${scale}) translate(0,0)`},
+    {transform:`translateX(-50%) scale(${scale}) translate(${dx*.48}px,${dy*.08}px)`},
+    {transform:`translateX(-50%) scale(${scale}) translate(${dx}px,${dy}px)`}
+  ],{duration:1550,easing:'cubic-bezier(.35,.03,.2,1)',fill:'forwards'});
+  await go.finished;
+
+  worker.classList.remove('walking');
+  if(bubble)bubble.textContent='ｽﾎﾟｯ';
+  done.classList.add('afoc-drop');
+  await new Promise(r=>setTimeout(r,360));
+  done.classList.remove('afoc-drop');
+  worker.classList.remove('carrying');
+
+  suppressedNoteIds.delete(note.id);
+  renderNotes(doc,state?.notes||[]);
+  if(bubble)bubble.textContent='🟨 できたよー！';
+  try{frame.contentWindow.say?.(note.title+' ✨')}catch(_){ }
+  await new Promise(r=>setTimeout(r,700));
+
+  worker.classList.add('walking');
+  if(bubble)bubble.textContent='ﾄｺﾄｺ…';
+  const back=worker.animate([
+    {transform:`translateX(-50%) scale(${scale}) translate(${dx}px,${dy}px)`},
+    {transform:`translateX(-50%) scale(${scale}) translate(${dx*.48}px,${dy*.08}px)`},
+    {transform:`translateX(-50%) scale(${scale}) translate(0,0)`}
+  ],{duration:1550,easing:'cubic-bezier(.35,.03,.2,1)',fill:'forwards'});
+  await back.finished;
+
+  go.cancel();
+  back.cancel();
+  worker.classList.remove('walking');
+  worker.style.zIndex=7;
+
+  if(roomState?.status==='done'){
+    if(bubble)bubble.textContent='✅ 完了';
+  }else{
+    worker.classList.add('working');
+    if(bubble)bubble.textContent=(kind==='chick'?'🐥':'🐅')+' 次ﾉ仕事！';
+    await new Promise(r=>setTimeout(r,650));
+    if(bubble)bubble.textContent=bubbleText(roomState||{id:note.room_id,status:'working'},kind);
+  }
+
+  completionWorkerId=null;
+  refreshBubbleVisibility(doc);
+  renderNotes(doc,state?.notes||[]);
+}
+
+async function drainCompletionQueue(){
+  if(completionPlaying)return;
+  completionPlaying=true;
+  try{
+    while(completionQueue.length){
+      const note=completionQueue.shift();
+      await animateCompletionNote(note);
+      await new Promise(r=>setTimeout(r,220));
+    }
+  }finally{
+    completionPlaying=false;
+  }
 }
 
 function apply(payload){
   const doc=frame.contentDocument;
   if(!doc||!payload)return;
+  registerCompletionEvents(payload.notes||[]);
   state=payload;
   const rooms=Array.isArray(state.rooms)?state.rooms:[];
   wirePods(doc);
@@ -258,7 +408,7 @@ function apply(payload){
     if(!worker)return;
     const kind=worker.classList.contains('chick')?'chick':'tiger';
     const bubble=worker.querySelector('.bubble');
-    if(bubble){
+    if(bubble&&completionWorkerId!==room.id){
       bubble.textContent=bubbleText(room,kind);
       bubble.title=[room.current_course_code,room.current_unit,room.current_phase].filter(Boolean).join(' · ');
     }
@@ -274,23 +424,12 @@ function apply(payload){
   const liveEl=doc.querySelector('.live');
   if(liveEl){
     const live=rooms.filter(x=>x.state_source==='room_heartbeat').length;
-    const canon=rooms.filter(x=>x.state_source==='notion_canon').length;
+    const canon=rooms.filter(x=>Boolean(x.canon_checked_at)).length;
     const attention=(state.health||[]).filter(x=>['quiet','stalled','blocked','room_full','handoff'].includes(x.health)).length;
     liveEl.innerHTML=`<i></i>⚡${live} live · 📚${canon} canon${attention?` · ${attention}要確認`:''}`;
   }
 
-  const notes=doc.getElementById('notes');
-  if(notes){
-    notes.innerHTML='';
-    (state.notes||[]).slice(0,6).forEach(note=>{
-      const a=doc.createElement('a');
-      a.className='note'; a.textContent='✓ '+note.title;
-      a.href=note.notion_page_url; a.target='_blank'; a.rel='noopener noreferrer';
-      a.title=note.subtitle||'Notion正本を開く';
-      a.style.textDecoration='none'; a.style.color='inherit';
-      notes.appendChild(a);
-    });
-  }
+  renderNotes(doc,state.notes||[]);
 
   if(selectedRoomId){
     const pod=doc.getElementById('worker-'+selectedRoomId)?.closest('.pod');
@@ -303,6 +442,7 @@ frame.addEventListener('load',()=>{
   const doc=frame.contentDocument;
   const css=doc.createElement('style');
   css.textContent=`
+    .bar .buttons{display:none!important}
     .bubble{top:18px!important;transform:none!important;z-index:30;max-width:132px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transition:opacity .28s ease,visibility .28s ease!important}
     .worker[data-bubble-visible="true"] .bubble{opacity:1!important;visibility:visible!important}
     .bubble:after{top:50%!important;bottom:auto!important;width:8px!important;height:8px!important;background:#fffdf9!important}
@@ -310,6 +450,8 @@ frame.addEventListener('load',()=>{
     .worker[data-health="stalled"]{filter:grayscale(.2);opacity:.72}.worker[data-health="quiet"]{opacity:.86}
     .worker[data-source="room_heartbeat"]{filter:drop-shadow(0 0 5px rgba(101,143,113,.16))}
     .worker[data-status="room_full"] .bubble,.worker[data-status="blocked"] .bubble{border-style:dashed!important}
+    .donezone.afoc-drop{animation:afocBoxDrop .42s ease}
+    @keyframes afocBoxDrop{0%,100%{transform:scale(1)}45%{transform:scale(1.045) rotate(-.5deg)}}
     #afoc-live-detail{position:absolute;z-index:9999;background:rgba(255,253,250,.985);border:1px solid #e4d6cc;border-radius:20px;padding:15px;box-shadow:0 18px 42px rgba(70,50,38,.2);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:#4b4642;text-align:left}
     #afoc-live-detail[hidden]{display:none!important}#afoc-live-detail .close{position:absolute;right:9px;top:8px;border:0;background:transparent;font-size:19px;color:#8a7c75;cursor:pointer}#afoc-live-detail .kicker{font-size:7px;font-weight:900;letter-spacing:.14em;color:#9a827d;padding-right:24px}#afoc-live-detail h3{font-size:14px;margin:3px 26px 9px 0}#afoc-live-detail .pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}#afoc-live-detail .pills span{font-size:7px;font-weight:900;background:#f4ebe4;border:1px solid #e9dcd3;border-radius:999px;padding:5px 7px}#afoc-live-detail .pills .source.room_heartbeat{background:#e6f1e6;border-color:#cadfca}#afoc-live-detail .pills .source.notion_canon{background:#e8edf5;border-color:#d5ddeb}#afoc-live-detail dl{display:grid;gap:6px;margin:0}#afoc-live-detail dl>div{display:grid;grid-template-columns:66px 1fr;gap:8px;align-items:start}#afoc-live-detail dt{font-size:7px;color:#9a8a82;font-weight:900}#afoc-live-detail dd{margin:0;font-size:8px;line-height:1.45;font-weight:700;overflow-wrap:anywhere}#afoc-live-detail .muted{color:#9b918b;font-weight:500}#afoc-live-detail .cmds{display:grid;gap:4px}#afoc-live-detail .cmd{background:#fff5cf;border-radius:7px;padding:5px 6px;font-size:7px;font-weight:800}#afoc-live-detail .cmd.active{background:#e9f2e7}#afoc-live-detail .cmd small{opacity:.58;margin-left:4px}#afoc-live-detail .syncnote{background:#fff1e5;border-radius:8px;padding:6px}#afoc-live-detail .notion{display:block;margin-top:11px;text-align:center;text-decoration:none;background:#5b6462;color:#fff;border-radius:11px;padding:8px 10px;font-size:8px;font-weight:900}
     @media(min-width:721px){
