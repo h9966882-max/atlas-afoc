@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AFOC Atelier — side bubbles</title>
+<style>
+html,body{margin:0;min-height:100%;background:#f7f1ee}
+#atelier{display:block;width:100%;border:0;min-height:100vh;background:#f7f1ee}
+</style>
+</head>
+<body>
+<iframe id="atelier" src="./atelier.html?bubble=side"></iframe>
+<script>
+const frame=document.getElementById('atelier');
+function resizeFrame(){
+  try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}
+}
+frame.addEventListener('load',()=>{
+  const d=frame.contentDocument;
+  const s=d.createElement('style');
+  s.textContent=`
+    .bubble{top:18px!important;transform:none!important;z-index:30}
+    .bubble:after{top:50%!important;bottom:auto!important;width:8px!important;height:8px!important;background:#fffdf9!important}
+    @media (min-width:721px){
+      .pod:nth-child(4n+1) .bubble,.pod:nth-child(4n+2) .bubble{left:calc(50% + 38px)!important;right:auto!important}
+      .pod:nth-child(4n+3) .bubble,.pod:nth-child(4n+4) .bubble{right:calc(50% + 38px)!important;left:auto!important}
+      .pod:nth-child(4n+1) .bubble:after,.pod:nth-child(4n+2) .bubble:after{left:-5px!important;right:auto!important;transform:translateY(-50%) rotate(45deg)!important;border-left:1px solid #eadbd1!important;border-bottom:1px solid #eadbd1!important;border-right:0!important;border-top:0!important}
+      .pod:nth-child(4n+3) .bubble:after,.pod:nth-child(4n+4) .bubble:after{right:-5px!important;left:auto!important;transform:translateY(-50%) rotate(45deg)!important;border-right:1px solid #eadbd1!important;border-top:1px solid #eadbd1!important;border-left:0!important;border-bottom:0!important}
+    }
+    @media (max-width:720px){
+      .pod:nth-child(odd) .bubble{left:calc(50% + 30px)!important;right:auto!important}
+      .pod:nth-child(even) .bubble{right:calc(50% + 30px)!important;left:auto!important}
+      .pod:nth-child(odd) .bubble:after{left:-5px!important;right:auto!important;transform:translateY(-50%) rotate(45deg)!important;border-left:1px solid #eadbd1!important;border-bottom:1px solid #eadbd1!important;border-right:0!important;border-top:0!important}
+      .pod:nth-child(even) .bubble:after{right:-5px!important;left:auto!important;transform:translateY(-50%) rotate(45deg)!important;border-right:1px solid #eadbd1!important;border-top:1px solid #eadbd1!important;border-left:0!important;border-bottom:0!important}
+    }
+  `;
+  d.head.appendChild(s);
+  resizeFrame();
+  new ResizeObserver(resizeFrame).observe(d.body);
+  setTimeout(resizeFrame,500);
+});
+window.addEventListener('resize',resizeFrame);
+</script>
+</body>
+</html>
