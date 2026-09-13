@@ -92,9 +92,8 @@
     const card = doc.getElementById('afoc-live-detail');
     if (!room || !card || card.hidden) return;
 
-    const health = roomHealth(room.id)?.health;
     const alreadyHandoff = ['handoff', 'room_full'].includes(room.status);
-    const needsRescue = !alreadyHandoff && health === 'stalled';
+    const needsRescue = !alreadyHandoff && room.status !== 'done';
     let rescue = card.querySelector('.afoc-roomfull-rescue');
 
     if (!needsRescue) {
