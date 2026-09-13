@@ -12,6 +12,9 @@
     .learning-toggle,.campus-toggle{border:1px solid #e5d9d1;background:#f7efe9;color:#675d57;border-radius:999px;padding:7px 10px;font:900 8px inherit;white-space:nowrap;cursor:pointer}
     .learning-content{padding:12px 14px 15px}.learning-content[hidden]{display:none!important}
     .learning-campus{margin-top:9px;border:1px solid #eaded6;border-radius:18px;background:#fff;overflow:hidden}.learning-campus:first-child{margin-top:0}
+    .learning-campus.foundation{border-color:#ddd8e8;background:linear-gradient(145deg,#fbf9ff,#fff)}
+    .learning-campus.foundation .campus-head{background:linear-gradient(135deg,#f5f2fb,#faf8ff)}
+    .learning-campus.foundation .faculty-learn-grid{grid-template-columns:1fr}
     .campus-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#faf7f4;border-bottom:1px solid #eee4dd}.campus-head h3{font-size:12px;margin:0}.campus-head span{font-size:7.5px;color:#938780;font-weight:850}
     .faculty-learn-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px}.faculty-learn-grid[hidden]{display:none!important}
     .learn-card{border:1px solid #eadfd8;border-radius:15px;background:#fff;padding:10px;min-width:0;box-shadow:0 4px 14px rgba(83,66,56,.035)}
@@ -30,7 +33,7 @@
   const root = document.createElement('section');
   root.className = 'learning-nav';
   root.id = 'faculty-learning-nav';
-  root.innerHTML = '<div class="learning-shell"><div class="learning-empty">🎓 学部ごとの学修現在地を読み込み中…</div></div>';
+  root.innerHTML = '<div class="learning-shell"><div class="learning-empty">🎓 共通基盤＋学部ごとの学修現在地を読み込み中…</div></div>';
   const progress = document.getElementById('faculty-curriculum-progress');
   if (progress) progress.parentNode.insertBefore(root, progress);
   else atelierFrame.parentNode.insertBefore(root, atelierFrame);
@@ -47,6 +50,7 @@
   let channel=null;
   let collapsed=localStorage.getItem('afoc-learning-collapsed')==='1';
   const campusClosed={
+    FOUNDATION:localStorage.getItem('afoc-learning-campus-FOUNDATION')==='1',
     KAKU:localStorage.getItem('afoc-learning-campus-KAKU')==='1',
     KYURI:localStorage.getItem('afoc-learning-campus-KYURI')==='1'
   };
@@ -69,9 +73,12 @@
 
   function buildPrompt(r){
     const first=r.learning_status==='unstarted';
-    const opening=first
-      ? `篤史、Atlas大学の${r.faculty_name}を初めて受けます！`
-      : `篤史、Atlas大学の${r.faculty_name}の続きを受けたいです！`;
+    const isFoundation=r.faculty_code==='FP';
+    const opening=isFoundation
+      ? '篤史、Atlas大学の共通基盤課程FPの続きを受けたいです！'
+      : first
+        ? `篤史、Atlas大学の${r.faculty_name}を初めて受けます！`
+        : `篤史、Atlas大学の${r.faculty_name}の続きを受けたいです！`;
     const lines=[opening,'',`次の授業：${r.next_lecture_title||r.next_lecture_id||'正本から確認してね'}`];
     if(r.next_reading_url)lines.push(`Reading Book：${r.next_reading_url}`);
     lines.push('','Notion上の最新正本・LRDB・ACDBを確認して、この日の日次チャット内で正式受講を開始してください。');
@@ -93,15 +100,23 @@
   function renderCard(r){
     const [statusLabel,statusClass]=statusMeta(r.learning_status);
     const first=r.learning_status==='unstarted';
+    const isFoundation=r.faculty_code==='FP';
     const lastBlock=first?'':`<div class="learn-block"><div class="learn-label">🕘 最後に受けた授業</div><div class="learn-lecture">${esc(r.last_lecture_title||r.last_lecture_id||'記録確認中')}</div>${r.last_completed_at?`<div class="learn-date">${esc(dateLabel(r.last_completed_at))}</div>`:''}<div class="learn-actions">${actionLink(r.last_compass_url,r.last_compass_url?'🧭 Atlas Compass':'🧭 Compass 未登録')}</div></div>`;
     const nextLabel=first?'✨ 最初の授業':'▶️ 次の授業';
-    const copyLabel=first?'📋 この学部をはじめる！':'📋 授業開始文をコピー';
+    const copyLabel=isFoundation?'📋 FPの続きを受ける！':first?'📋 この学部をはじめる！':'📋 授業開始文をコピー';
     return `<article class="learn-card ${statusClass}" data-faculty="${esc(r.faculty_code)}">
       <div class="learn-card-top"><div><div class="learn-code">${esc(r.faculty_code)}</div><div class="learn-name">${esc(r.faculty_name)}</div></div><span class="learn-status ${statusClass}">${statusLabel}</span></div>
       ${lastBlock}
       <div class="learn-block"><div class="learn-label">${nextLabel}</div><div class="learn-lecture">${esc(r.next_lecture_title||r.next_lecture_id||'初回講義を正本確認中')}</div><div class="learn-actions">${actionLink(r.next_reading_url,r.next_reading_url?'📖 Reading Book':'📖 Reading Book 準備中','spark')}<button class="learn-action primary copy-start" type="button">${copyLabel}</button></div></div>
       ${r.source_note?`<div class="learn-note">${esc(r.source_note)}</div>`:''}
     </article>`;
+  }
+
+  function renderFoundation(){
+    const list=rows.filter(r=>r.campus_code==='FOUNDATION').sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    if(!list.length)return '';
+    const closed=!!campusClosed.FOUNDATION;
+    return `<section class="learning-campus foundation" data-campus="FOUNDATION"><header class="campus-head"><div><h3>🧭 共通基盤課程｜FP101〜107</h3><span>7科目・56講｜学部とは別の共通基盤</span></div><button type="button" class="campus-toggle">${closed?'開く':'たたむ'}</button></header><div class="faculty-learn-grid" ${closed?'hidden':''}>${list.map(renderCard).join('')}</div></section>`;
   }
 
   function renderCampus(code){
@@ -123,7 +138,7 @@
   }
 
   function render(){
-    root.innerHTML=`<div class="learning-shell"><header class="learning-head"><div><div class="learning-eyebrow">ATLAS LEARNING CONTINUATION</div><h2>🎓 学修のつづき</h2><p>学部ごとに「前回 → Compass → 次回 → Reading → 授業開始」をつなぐ。</p></div><button class="learning-toggle" type="button">${collapsed?'🎓 開く':'▴ たたむ'}</button></header><div class="learning-content" ${collapsed?'hidden':''}>${rows.length?renderCampus('KAKU')+renderCampus('KYURI'):'<div class="learning-empty">学修現在地はまだ同期されていないよ。</div>'}</div></div>`;
+    root.innerHTML=`<div class="learning-shell"><header class="learning-head"><div><div class="learning-eyebrow">ATLAS LEARNING CONTINUATION</div><h2>🎓 学修のつづき</h2><p>共通基盤＋学部ごとに「前回 → Compass → 次回 → Reading → 授業開始」をつなぐ。</p></div><button class="learning-toggle" type="button">${collapsed?'🎓 開く':'▴ たたむ'}</button></header><div class="learning-content" ${collapsed?'hidden':''}>${rows.length?renderFoundation()+renderCampus('KAKU')+renderCampus('KYURI'):'<div class="learning-empty">学修現在地はまだ同期されていないよ。</div>'}</div></div>`;
     bind();
   }
 
