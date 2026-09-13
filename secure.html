@@ -25,13 +25,14 @@ body{min-height:100vh}.hidden{display:none!important}
     <div class="crest">🏛️</div>
     <div class="kicker">ATLAS UNIVERSITY · PRIVATE ENTRANCE</div>
     <h1 id="gate-title">Faculty Atelier</h1>
-    <p>ここから先はAtlas大学の教材制作工房。登録済みのメールアドレスへ、一度きりの入館リンクを送るよ。</p>
+    <p>ここから先はAtlas大学の教材制作工房。登録済みのメールアドレスとパスワードで入館するよ。</p>
     <form id="login-form" class="login">
       <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="登録済みメールアドレス" required>
-      <button id="login-button" type="submit">🔐 入館リンクを送る</button>
+      <input id="password" type="password" autocomplete="current-password" placeholder="パスワード" required>
+      <button id="login-button" type="submit">🔐 入館する</button>
     </form>
     <div id="status" class="status" role="status"></div>
-    <p class="locknote">AFOCの運用データはログイン後にだけ取得する設計。GitHubには管理者用の秘密鍵を置かない。</p>
+    <p class="locknote">AFOCの運用データはログイン後にだけ取得。GitHubには管理者用の秘密鍵を置かない。</p>
     <div class="mascots">🐅　🐥</div>
   </section>
 </main>
