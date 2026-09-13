@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f4efe7" />
+  <title>AFOC — Atlas Faculty Operations Center</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .track i.done{width:100%}
+    .track i.empty{width:0}
+    .track i.indeterminate{width:32%;animation:afocScan 1.8s ease-in-out infinite}
+    @keyframes afocScan{0%{transform:translateX(-120%)}50%{transform:translateX(105%)}100%{transform:translateX(330%)}}
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">ATLAS UNIVERSITY · FACULTY OPERATIONS</p>
+        <h1>Faculty Operations Center</h1>
+        <p class="subtitle">AFOC v0.1 · 教材開発管制塔</p>
+      </div>
+      <div class="live-pill"><span></span> PROTOTYPE LIVE</div>
+    </header>
+    <section class="stats" aria-label="開発状況サマリー">
+      <article><small>稼働中の開発室</small><strong id="activeCount">8</strong></article>
+      <article><small>Lecture Book 完了</small><strong>1 / 7</strong></article>
+      <article><small>Reading Book 稼働</small><strong>2 / 7</strong></article>
+      <article><small>前工程待ち</small><strong>5</strong></article>
+    </section>
+    <section class="workspace">
+      <article class="panel curriculum-panel"><div class="panel-head"><div><h2>📚 Curriculum Monitor</h2><p>7学部 × Lecture / Reading の現在地</p></div><span class="chip">CURRENT STATE</span></div><div id="curriculum" class="curriculum"></div></article>
+      <article class="panel office-panel"><div class="panel-head"><div><h2>🏛️ Faculty Floor</h2><p>AI Faculty が働いている様子を、そのまま眺める職員室</p></div><span class="chip">ANIMATION LAB</span></div><div class="toolbar"><p>完了すると、書類を持って完了BOXへ → 付箋を貼る → 席へ戻って次の仕事へ。</p><div class="buttons"><button id="demoBtn" class="button primary">▶ 完了動作を実演</button><button id="randomBtn" class="button">🎲 別のFaculty</button></div></div><div id="office" class="office" aria-label="AI Faculty 職員室"><div class="office-label">ATLAS FACULTY WORKROOM</div><div class="window" aria-hidden="true"></div><div class="plant" aria-hidden="true">🌿</div><div id="desks" class="desks"></div><div id="stickyWall" class="sticky-wall"><b>DONE NOTES</b></div><div id="doneZone" class="done-zone"><div class="done-box"><span>DONE</span></div><small>完了 BOX</small></div></div></article>
+    </section>
+    <section class="lower-grid"><article class="panel"><div class="panel-head"><div><h2>🪶 Activity Feed</h2><p>教材開発室の更新がここへ流れる</p></div><span class="chip">EVENTS</span></div><div id="activity" class="activity"></div></article><article class="panel"><div class="panel-head"><div><h2>⚙️ v0.1 Wiring</h2><p>まずは“現在地が一目で分かる”を完成させる</p></div><span class="chip">FREE STACK</span></div><dl class="wiring"><div><dt>UI</dt><dd>HTML / CSS / JavaScript</dd></div><div><dt>Animation</dt><dd>Web Animations API + CSS</dd></div><div><dt>Operational state</dt><dd>Supabase Free（次工程）</dd></div><div><dt>Canonical record</dt><dd>Notion</dd></div><div><dt>Repository</dt><dd>GitHub · atlas-afoc</dd></div></dl></article></section>
+    <footer>AFOC v0.1 · Atlas University · 2026</footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
