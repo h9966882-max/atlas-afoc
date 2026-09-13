@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f1ee">
+<title>AFOC｜Faculty Atelier</title>
+<style>
+:root{--ink:#474441;--muted:#827a75;--line:#eaded6;--paper:#fffaf6;--sage:#dfeadf;--shadow:0 22px 60px rgba(86,66,54,.13)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;color:var(--ink);background:linear-gradient(145deg,#faf4f2,#f1eee8)}
+body{min-height:100vh}.hidden{display:none!important}
+.gate{min-height:100vh;display:grid;place-items:center;padding:28px 18px}.door{width:min(440px,100%);background:rgba(255,253,250,.9);border:1px solid var(--line);border-radius:34px;padding:34px 26px 26px;box-shadow:var(--shadow);text-align:center;backdrop-filter:blur(12px)}
+.crest{width:82px;height:82px;margin:0 auto 18px;border-radius:30px;display:grid;place-items:center;font-size:39px;background:#f4e7df;border:1px solid #ead6ca;box-shadow:inset 0 0 0 7px rgba(255,255,255,.4)}
+.kicker{font-size:9px;letter-spacing:.18em;font-weight:900;color:#a38888}.door h1{font-size:31px;line-height:1.05;margin:8px 0 9px;letter-spacing:-.04em}.door p{font-size:12px;line-height:1.7;color:var(--muted);margin:0 auto 22px;max-width:330px}
+.login{display:grid;gap:10px}.login input{width:100%;border:1px solid #e4d7cf;background:#fff;border-radius:16px;padding:14px 15px;font:inherit;font-size:14px;outline:none}.login input:focus{border-color:#b9aaa0;box-shadow:0 0 0 4px rgba(195,176,164,.15)}
+.login button,.logout{border:0;border-radius:16px;padding:13px 16px;background:#58615f;color:white;font:800 12px inherit;box-shadow:0 8px 20px rgba(69,78,76,.18)}.login button:disabled{opacity:.45}.status{min-height:20px;margin-top:13px;font-size:10px;color:#8b7d77}.status.error{color:#a75e58}.locknote{margin-top:18px;padding-top:15px;border-top:1px dashed #eaded6;font-size:9px!important}.mascots{font-size:22px;letter-spacing:.15em;margin-top:12px}
+.app{min-height:100vh}.appbar{position:sticky;top:0;z-index:20;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(250,246,242,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.appbar b{font-size:11px}.appbar span{font-size:9px;color:var(--muted)}.logout{padding:8px 11px;border-radius:999px;font-size:9px;box-shadow:none}.atelier-frame{display:block;width:100%;min-height:calc(100vh - 48px);border:0;background:#f7f1ee}
+@media(max-width:520px){.gate{padding:18px 12px}.door{padding:29px 20px 22px;border-radius:28px}.door h1{font-size:28px}}
+</style>
+</head>
+<body>
+<main id="gate" class="gate">
+  <section class="door" aria-labelledby="gate-title">
+    <div class="crest">🏛️</div>
+    <div class="kicker">ATLAS UNIVERSITY · PRIVATE ENTRANCE</div>
+    <h1 id="gate-title">Faculty Atelier</h1>
+    <p>ここから先はAtlas大学の教材制作工房。登録済みのメールアドレスへ、一度きりの入館リンクを送るよ。</p>
+    <form id="login-form" class="login">
+      <input id="email" type="email" autocomplete="email" inputmode="email" placeholder="登録済みメールアドレス" required>
+      <button id="login-button" type="submit">🔐 入館リンクを送る</button>
+    </form>
+    <div id="status" class="status" role="status"></div>
+    <p class="locknote">AFOCの運用データはログイン後にだけ取得する設計。GitHubには管理者用の秘密鍵を置かない。</p>
+    <div class="mascots">🐅　🐥</div>
+  </section>
+</main>
+
+<main id="app" class="app hidden">
+  <header class="appbar">
+    <div><b>🏛️ AFOC</b> <span id="member-role"></span></div>
+    <button id="logout" class="logout" type="button">退出する</button>
+  </header>
+  <iframe id="atelier-frame" class="atelier-frame" title="Atlas Faculty Atelier" src="./atelier-side.html"></iframe>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./afoc-config.js"></script>
+<script src="./secure.js"></script>
+</body>
+</html>
