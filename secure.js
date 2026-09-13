@@ -11,6 +11,8 @@
   const frame = document.getElementById('atelier-frame');
 
   const ready = Boolean(config.supabaseUrl && config.supabasePublishableKey);
+  let liveChannel = null;
+  let state = { rooms: [], notes: [] };
 
   function setStatus(message = '', kind = '') {
     statusEl.textContent = message;
@@ -40,8 +42,17 @@
     }
   }
 
+  function sendStateToAtelier() {
+    if (!frame.contentWindow) return;
+    frame.contentWindow.postMessage(
+      { type: 'afoc-state', payload: state },
+      window.location.origin
+    );
+  }
+
   frame.addEventListener('load', () => {
     resizeFrame();
+    sendStateToAtelier();
     try {
       new ResizeObserver(resizeFrame).observe(frame.contentDocument.body);
     } catch (_) {}
@@ -67,6 +78,57 @@
     }
   );
 
+  async function loadOperationalState() {
+    const [roomsResult, notesResult] = await Promise.all([
+      client
+        .from('development_rooms')
+        .select('*')
+        .order('faculty_code', { ascending: true }),
+      client
+        .from('completion_notes')
+        .select('id,room_id,title,subtitle,notion_page_url,completed_at,seen_at')
+        .order('completed_at', { ascending: false })
+        .limit(12)
+    ]);
+
+    if (roomsResult.error) throw roomsResult.error;
+    if (notesResult.error) throw notesResult.error;
+
+    state = {
+      rooms: roomsResult.data || [],
+      notes: notesResult.data || []
+    };
+    sendStateToAtelier();
+  }
+
+  async function startRealtime() {
+    if (liveChannel) {
+      await client.removeChannel(liveChannel);
+      liveChannel = null;
+    }
+
+    liveChannel = client
+      .channel('afoc-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'development_rooms' },
+        () => loadOperationalState().catch(console.error)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'completion_notes' },
+        () => loadOperationalState().catch(console.error)
+      )
+      .subscribe();
+  }
+
+  async function stopRealtime() {
+    if (!liveChannel) return;
+    await client.removeChannel(liveChannel);
+    liveChannel = null;
+    state = { rooms: [], notes: [] };
+  }
+
   async function verifyMembership(session) {
     if (!session?.user) {
       showGate();
@@ -88,6 +150,13 @@
     }
 
     showApp(data.role || 'member');
+    try {
+      await loadOperationalState();
+      await startRealtime();
+    } catch (loadError) {
+      console.error(loadError);
+      setStatus('AFOCデータの読み込みでエラーが起きたよ。', 'error');
+    }
     return true;
   }
 
@@ -119,6 +188,7 @@
   });
 
   logoutButton.addEventListener('click', async () => {
+    await stopRealtime();
     await client.auth.signOut();
     memberRole.textContent = '';
     showGate();
@@ -129,6 +199,7 @@
     if (session) {
       await verifyMembership(session);
     } else {
+      await stopRealtime();
       showGate();
     }
   });
