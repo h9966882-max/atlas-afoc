@@ -22,8 +22,15 @@
 
   const ready = Boolean(config.supabaseUrl && config.supabasePublishableKey);
   let liveChannel = null;
+  let healthTimer = null;
   let currentSession = null;
-  let state = { rooms: [], notes: [] };
+  let state = {
+    rooms: [],
+    notes: [],
+    health: [],
+    commands: [],
+    instances: []
+  };
 
   function setStatus(message = '', kind = '') {
     statusEl.textContent = message;
@@ -64,6 +71,17 @@
     );
   }
 
+  function updateCommandButton() {
+    const pending = state.commands.filter((command) =>
+      ['queued', 'claimed'].includes(command.status)
+    ).length;
+    openCommand.textContent = pending ? `📮 指示する ${pending}` : '📮 指示する';
+    openCommand.setAttribute(
+      'aria-label',
+      pending ? `Facultyへ指示する。未処理${pending}件` : 'Facultyへ指示する'
+    );
+  }
+
   function updateCommandRooms() {
     const selected = commandRoom.value;
     commandRoom.innerHTML = '<option value="">担当Facultyを選択</option>';
@@ -77,13 +95,17 @@
         option.textContent = `${room.faculty_name} ${material}${current ? `｜${current}` : ''}`;
         commandRoom.appendChild(option);
       });
-    if ([...commandRoom.options].some((o) => o.value === selected)) commandRoom.value = selected;
+    if ([...commandRoom.options].some((option) => option.value === selected)) {
+      commandRoom.value = selected;
+    }
   }
 
   frame.addEventListener('load', () => {
     resizeFrame();
     sendStateToAtelier();
-    try { new ResizeObserver(resizeFrame).observe(frame.contentDocument.body); } catch (_) {}
+    try {
+      new ResizeObserver(resizeFrame).observe(frame.contentDocument.body);
+    } catch (_) {}
   });
   window.addEventListener('resize', resizeFrame);
 
@@ -118,20 +140,62 @@
   );
 
   async function loadOperationalState() {
-    const [roomsResult, notesResult] = await Promise.all([
-      client.from('development_rooms').select('*').order('faculty_code', { ascending: true }),
-      client
-        .from('completion_notes')
-        .select('id,room_id,title,subtitle,notion_page_url,completed_at,seen_at')
-        .order('completed_at', { ascending: false })
-        .limit(12)
-    ]);
+    const [roomsResult, notesResult, healthResult, commandsResult, instancesResult] =
+      await Promise.all([
+        client
+          .from('development_rooms')
+          .select('*')
+          .order('faculty_code', { ascending: true })
+          .order('material_type', { ascending: true }),
+        client
+          .from('completion_notes')
+          .select('id,room_id,title,subtitle,notion_page_url,completed_at,seen_at')
+          .order('completed_at', { ascending: false })
+          .limit(12),
+        client
+          .from('afoc_room_health')
+          .select('*')
+          .order('faculty_code', { ascending: true })
+          .order('material_type', { ascending: true }),
+        client
+          .from('commands')
+          .select('id,room_id,command_type,instruction,status,requested_at,claimed_at,completed_at')
+          .in('status', ['queued', 'claimed'])
+          .order('requested_at', { ascending: true })
+          .limit(50),
+        client
+          .from('room_instances')
+          .select('id,room_id,external_room_key,room_label,status,started_at,last_seen_at,ended_at,handoff_checkpoint_id')
+          .in('status', ['active', 'handoff', 'room_full'])
+          .order('started_at', { ascending: false })
+          .limit(50)
+      ]);
 
-    if (roomsResult.error) throw roomsResult.error;
-    if (notesResult.error) throw notesResult.error;
+    const results = [
+      ['development_rooms', roomsResult],
+      ['completion_notes', notesResult],
+      ['afoc_room_health', healthResult],
+      ['commands', commandsResult],
+      ['room_instances', instancesResult]
+    ];
 
-    state = { rooms: roomsResult.data || [], notes: notesResult.data || [] };
+    for (const [label, result] of results) {
+      if (result.error) {
+        console.error(`AFOC load failed: ${label}`, result.error);
+        throw result.error;
+      }
+    }
+
+    state = {
+      rooms: roomsResult.data || [],
+      notes: notesResult.data || [],
+      health: healthResult.data || [],
+      commands: commandsResult.data || [],
+      instances: instancesResult.data || []
+    };
+
     updateCommandRooms();
+    updateCommandButton();
     sendStateToAtelier();
   }
 
@@ -143,16 +207,42 @@
 
     liveChannel = client
       .channel('afoc-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'development_rooms' }, () => loadOperationalState().catch(console.error))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'completion_notes' }, () => loadOperationalState().catch(console.error))
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'development_rooms' },
+        () => loadOperationalState().catch(console.error)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'completion_notes' },
+        () => loadOperationalState().catch(console.error)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'commands' },
+        () => loadOperationalState().catch(console.error)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'room_instances' },
+        () => loadOperationalState().catch(console.error)
+      )
       .subscribe();
+
+    if (healthTimer) clearInterval(healthTimer);
+    healthTimer = setInterval(() => {
+      if (currentSession) loadOperationalState().catch(console.error);
+    }, 60_000);
   }
 
   async function stopRealtime() {
     if (liveChannel) await client.removeChannel(liveChannel);
     liveChannel = null;
-    state = { rooms: [], notes: [] };
+    if (healthTimer) clearInterval(healthTimer);
+    healthTimer = null;
+    state = { rooms: [], notes: [], health: [], commands: [], instances: [] };
     currentSession = null;
+    updateCommandButton();
   }
 
   async function verifyMembership(session) {
@@ -193,9 +283,12 @@
     if (!roomId || !trimmed) throw new Error('担当Facultyと指示内容を選んでね。');
 
     const room = state.rooms.find((item) => item.id === roomId);
-    if (!room?.is_unlocked || room.status === 'done') throw new Error('このFacultyは現在、指示受付対象ではないよ。');
+    if (!room?.is_unlocked || room.status === 'done') {
+      throw new Error('このFacultyは現在、指示受付対象ではないよ。');
+    }
 
-    const commandType = trimmed === '次の実装へ進んで' ? 'next_implementation' : 'instruction';
+    const commandType =
+      trimmed === '次の実装へ進んで' ? 'next_implementation' : 'instruction';
     const { error } = await client.from('commands').insert({
       room_id: roomId,
       command_type: commandType,
@@ -214,6 +307,7 @@
       await enqueueCommand(commandRoom.value, commandText.value);
       setCommandStatus('✅ 指示をキューへ入れたよ。');
       commandText.value = '';
+      await loadOperationalState();
     } catch (error) {
       console.error(error);
       setCommandStatus(error.message || '指示を送れなかったよ。');
@@ -241,7 +335,6 @@
 
     passwordInput.value = '';
     setStatus('');
-    await verifyMembership(data.session);
   });
 
   logoutButton.addEventListener('click', async () => {
@@ -252,12 +345,15 @@
     setStatus('退出したよ 🔐');
   });
 
-  client.auth.onAuthStateChange(async (_event, session) => {
-    if (session) await verifyMembership(session);
-    else {
-      await stopRealtime();
-      showGate();
-    }
+  client.auth.onAuthStateChange((_event, session) => {
+    window.setTimeout(async () => {
+      if (session) {
+        await verifyMembership(session);
+      } else {
+        await stopRealtime();
+        showGate();
+      }
+    }, 0);
   });
 
   (async () => {
