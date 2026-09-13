@@ -36,7 +36,7 @@ const toast = document.getElementById('toast');
 
 function lane(title,status){
   const [lead,copy] = statusCopy[status];
-  const progress = status === 'done' ? '100%' : status === 'working' ? '48%' : '0%';
+  const trackClass = status === 'done' ? 'done' : status === 'working' ? 'indeterminate' : 'empty';
   return `
     <div class="lane">
       <div class="lane-top">
@@ -44,7 +44,7 @@ function lane(title,status){
         <span class="status ${status}">${statusLabel[status]}</span>
       </div>
       <div class="lane-copy"><b>${lead}</b><span>${copy}</span></div>
-      <div class="track"><i style="--progress:${progress}"></i></div>
+      <div class="track"><i class="${trackClass}"></i></div>
     </div>`;
 }
 
@@ -63,12 +63,20 @@ function renderCurriculum(){
   });
 }
 
-function workerMarkup(w){
+function workerMarkup(w,index){
   return `
-    <div class="desk"><div class="mug"></div><div class="laptop"></div><div class="desk-label">${w.label}</div></div>
-    <div class="worker working" id="worker-${w.id}" style="--worker-color:${w.color}">
+    <div class="desk">
+      <div class="mug"></div>
+      <div class="laptop"></div>
+      <div class="desk-label">${w.label}</div>
+    </div>
+    <div class="worker working style-${index % 4}" id="worker-${w.id}" style="--worker-color:${w.color}">
       <div class="speech">${w.icon} ﾓﾘﾓﾘ…</div>
-      <div class="hair"></div><div class="head"></div><div class="body"></div>
+      <div class="hair"></div>
+      <div class="head"></div>
+      <div class="face"></div>
+      <div class="body"></div>
+      <div class="role-badge">${w.icon}</div>
       <div class="arm left"></div><div class="arm right"></div>
       <div class="leg left"></div><div class="leg right"></div>
       <div class="document"></div>
@@ -77,11 +85,11 @@ function workerMarkup(w){
 
 function renderWorkers(){
   desks.innerHTML = '';
-  workers.forEach(w => {
+  workers.forEach((w,index) => {
     const station = document.createElement('div');
     station.className = 'station';
     station.dataset.worker = w.id;
-    station.innerHTML = workerMarkup(w);
+    station.innerHTML = workerMarkup(w,index);
     desks.appendChild(station);
   });
 }
@@ -117,7 +125,6 @@ async function demoComplete(index=currentWorkerIndex){
   demoRunning = true;
   const w = workers[index];
   const actor = document.getElementById(`worker-${w.id}`);
-  const station = actor.closest('.station');
   const startActorRect = actor.getBoundingClientRect();
   const officeRect = office.getBoundingClientRect();
   const doneRect = doneZone.getBoundingClientRect();
