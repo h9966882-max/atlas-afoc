@@ -43,11 +43,11 @@
   }
 
   function updateMemberStatus() {
-    const canon = state.rooms.filter((room) => room.state_source === 'notion_canon').length;
+    const canon = state.rooms.filter((room) => Boolean(room.canon_checked_at)).length;
     const live = state.rooms.filter((room) => room.state_source === 'room_heartbeat').length;
     const role = currentRole || 'member';
     memberRole.textContent = `· ${role} · 📚${canon} · ⚡${live}`;
-    memberRole.title = `Notion正本同期 ${canon}ライン / 開発室Live同期 ${live}ライン`;
+    memberRole.title = `Notion正本確認済み ${canon}ライン / 開発室Live接続 ${live}ライン`;
   }
 
   function showGate() {
