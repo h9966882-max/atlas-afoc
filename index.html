@@ -6,6 +6,12 @@
   <meta name="theme-color" content="#f4efe7" />
   <title>AFOC — Atlas Faculty Operations Center</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .track i.done{width:100%}
+    .track i.empty{width:0}
+    .track i.indeterminate{width:32%;animation:afocScan 1.8s ease-in-out infinite}
+    @keyframes afocScan{0%{transform:translateX(-120%)}50%{transform:translateX(105%)}100%{transform:translateX(330%)}}
+  </style>
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
