@@ -7,8 +7,31 @@
 
   let previousFocus = null;
 
+  function refreshManualCopy() {
+    const intro = panel.querySelector('.manual-intro');
+    if (intro) intro.textContent = 'AFOCの主役は、学部全体の教材開発地図。普段の続きを進める時はChatGPT教材開発室で 👍➡️ を送るだけでOK。AFOCの📮指示は、特殊な仕事を次回起動時へ予約したい時に使う。';
+
+    const callouts = panel.querySelectorAll('.manual-callout');
+    if (callouts[0]) callouts[0].innerHTML = '<b>いちばん大事</b><br>通常制作の続行は、対応するChatGPT教材開発室で <span class="manual-kbd">👍➡️</span> を1回送るだけ。AFOCで先に📮指示を入れる必要はない。AFOCでは、全科目・全講数、現在地、残量、正式化待ちを確認する。';
+    if (callouts[1]) callouts[1].innerHTML = '<b>AFOCができること / まだできないこと</b><br>AFOCは教材開発全体の地図、Live現在地、特殊指示の予約、Handoff / Room Full救済を担う。ただし、休止中の既存ChatGPTチャットに外部から新しいターンを自動発生させることはできない。通常の再開は開発室で <span class="manual-kbd">👍➡️</span>。';
+
+    [...panel.querySelectorAll('.manual-step')].forEach((step) => {
+      const text = step.textContent || '';
+      if (text.includes('📮 1室だけ次へ')) {
+        step.innerHTML = '<b>📮 特殊な指示を予約</b><br>通常の「次へ」には不要。特定の優先作業や次回起動時に必ず渡したい仕事がある時だけ使う。';
+      } else if (text.includes('🐅🐥 みんな次へ')) {
+        step.innerHTML = '<b>🐅🐥 一斉指示</b><br>全室へ仕事を予約する機能。ChatGPT開発室を自動起動する機能ではない。各室の新しいターンは別途必要。';
+      } else if (text.includes('💤 quietだけど進めたい')) {
+        step.innerHTML = '<b>💤 止まっていて続きを進めたい</b><br>対応するChatGPT教材開発室を開いて <span class="manual-kbd">👍➡️</span>。AFOCで先に指示を入れなくてOK。';
+      } else if (text.includes('📚 ROOM FULL')) {
+        step.innerHTML = '<b>📚 ROOM FULL / 📦 引継ぎ</b><br>Faculty詳細の引継ぎボタン、または「Room Fullとして引継ぎへ」を使う。Checkpoint作成と新しい開発室用プロンプトのコピーまでAFOCが担当する。';
+      }
+    });
+  }
+
   function openManual() {
     previousFocus = document.activeElement;
+    refreshManualCopy();
     backdrop.classList.remove('hidden');
     panel.classList.remove('hidden');
     requestAnimationFrame(() => {
@@ -32,6 +55,7 @@
     if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
   }
 
+  refreshManualCopy();
   openButton.addEventListener('click', openManual);
   closeButton.addEventListener('click', closeManual);
   backdrop.addEventListener('click', closeManual);
