@@ -39,3 +39,11 @@
     if (event.key === 'Escape' && !panel.classList.contains('hidden')) closeManual();
   });
 })();
+
+(() => {
+  if (document.querySelector('script[data-afoc-roomfull-rescue]')) return;
+  const script = document.createElement('script');
+  script.src = './roomfull-rescue.js';
+  script.dataset.afocRoomfullRescue = '1';
+  document.body.appendChild(script);
+})();
