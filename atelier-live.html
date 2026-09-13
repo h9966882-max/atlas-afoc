@@ -15,6 +15,8 @@ html,body{margin:0;min-height:100%;background:#f7f1ee}
 const frame=document.getElementById('atelier');
 let state=null;
 let selectedRoomId=null;
+let bubbleRotationIndex=0;
+let bubbleRotationTimer=null;
 
 function esc(value){
   return String(value??'')
@@ -70,21 +72,83 @@ function healthLabel(value){
 
 function bubbleText(room,kind){
   const icon=kind==='chick'?'🐥':'🐅';
-  const current=[room.current_course_code,room.current_unit].filter(Boolean).join('-');
   const health=roomHealth(room.id)?.health;
   const commands=roomCommands(room.id);
   const claimed=commands.filter(x=>x.status==='claimed').length;
   const queued=commands.filter(x=>x.status==='queued').length;
+  const course=room.current_course_code||'';
   let text;
+
   if(health==='stalled'&&!['done','waiting'].includes(room.status)) text='💤 STALLED';
   else{
-    const labels={waiting:'⏳ 待機',ready:'✨ READY',working:`${icon} ${current?current+' ':''}ﾓﾘﾓﾘ…`,checking:'🔎 確認中',approval_wait:'🟨 承認待ち',done:'✅ 完了',blocked:'⚠️ BLOCKED',stalled:'💤 STALLED',room_full:'📚💦 ROOM FULL',handoff:'📦 引継ぎ中',resuming:'✨ 再開中'};
-    text=labels[room.status]||`${icon} ${current?current+' ':''}ﾓﾘﾓﾘ…`;
+    const labels={
+      waiting:'⏳ 待機',
+      ready:'✨ READY',
+      working:course?`${icon} ${course} 実装中`:`${icon} ﾓﾘﾓﾘ…`,
+      checking:'🔎 QA中',
+      approval_wait:'🟨 承認待ち',
+      done:'✅ 完了',
+      blocked:'⚠️ BLOCKED',
+      stalled:'💤 STALLED',
+      room_full:'📚 ROOM FULL',
+      handoff:'📦 引継ぎ中',
+      resuming:'✨ 再開中'
+    };
+    text=labels[room.status]||`${icon} ${course||'ﾓﾘﾓﾘ…'}`;
     if(health==='quiet')text+=' · quiet';
   }
-  if(claimed)text+=` 📮▶${claimed}`;
-  if(queued)text+=` 📮${queued}`;
+  if(claimed)text+=` ▶📮`;
+  else if(queued)text+=` 📮${queued}`;
   return text;
+}
+
+function isAttention(room){
+  const health=roomHealth(room.id)?.health;
+  return ['blocked','stalled','room_full','handoff'].includes(room.status)||health==='stalled';
+}
+
+function refreshBubbleVisibility(doc){
+  if(!doc||!state)return;
+  const roomMap=new Map((state.rooms||[]).map(room=>[room.id,room]));
+  const entries=[...doc.querySelectorAll('.pod')]
+    .map((pod,index)=>{
+      const worker=pod.querySelector('.worker[id^="worker-"]');
+      if(!worker)return null;
+      const id=worker.id.replace('worker-','');
+      const room=roomMap.get(id);
+      return room?{pod,worker,room,row:Math.floor(index/2)}:null;
+    })
+    .filter(Boolean);
+
+  entries.forEach(({worker})=>worker.dataset.bubbleVisible='false');
+  if(!entries.length)return;
+
+  const chosen=[];
+  const usedRows=new Set();
+  const addEntry=entry=>{
+    if(!entry||chosen.includes(entry)||usedRows.has(entry.row)||chosen.length>=2)return false;
+    chosen.push(entry); usedRows.add(entry.row); return true;
+  };
+
+  entries.filter(entry=>isAttention(entry.room)).forEach(addEntry);
+
+  const pool=entries.filter(entry=>!chosen.includes(entry));
+  if(pool.length){
+    const start=bubbleRotationIndex%pool.length;
+    for(let offset=0;offset<pool.length&&chosen.length<2;offset++){
+      addEntry(pool[(start+offset)%pool.length]);
+    }
+  }
+
+  chosen.forEach(({worker})=>worker.dataset.bubbleVisible='true');
+}
+
+function startBubbleRotation(){
+  if(bubbleRotationTimer)clearInterval(bubbleRotationTimer);
+  bubbleRotationTimer=setInterval(()=>{
+    bubbleRotationIndex+=1;
+    refreshBubbleVisibility(frame.contentDocument);
+  },4800);
 }
 
 function ensureDetail(doc){
@@ -194,13 +258,18 @@ function apply(payload){
     if(!worker)return;
     const kind=worker.classList.contains('chick')?'chick':'tiger';
     const bubble=worker.querySelector('.bubble');
-    if(bubble)bubble.textContent=bubbleText(room,kind);
+    if(bubble){
+      bubble.textContent=bubbleText(room,kind);
+      bubble.title=[room.current_course_code,room.current_unit,room.current_phase].filter(Boolean).join(' · ');
+    }
     worker.dataset.status=room.status||'';
     worker.dataset.health=roomHealth(room.id)?.health||'';
     worker.dataset.source=room.state_source||'';
     const name=worker.closest('.pod')?.querySelector('.name');
     if(name)name.textContent=`${room.faculty_name||room.faculty_code} ${room.material_type==='reading'?'Reading':'Lecture'}`;
   });
+
+  refreshBubbleVisibility(doc);
 
   const liveEl=doc.querySelector('.live');
   if(liveEl){
@@ -234,7 +303,8 @@ frame.addEventListener('load',()=>{
   const doc=frame.contentDocument;
   const css=doc.createElement('style');
   css.textContent=`
-    .bubble{top:18px!important;transform:none!important;z-index:30}
+    .bubble{top:18px!important;transform:none!important;z-index:30;max-width:132px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transition:opacity .28s ease,visibility .28s ease!important}
+    .worker[data-bubble-visible="true"] .bubble{opacity:1!important;visibility:visible!important}
     .bubble:after{top:50%!important;bottom:auto!important;width:8px!important;height:8px!important;background:#fffdf9!important}
     .pod[role="button"]{cursor:pointer;outline:none}.pod[role="button"]:focus-visible{box-shadow:inset 0 0 0 2px rgba(91,100,98,.35)}
     .worker[data-health="stalled"]{filter:grayscale(.2);opacity:.72}.worker[data-health="quiet"]{opacity:.86}
@@ -247,6 +317,7 @@ frame.addEventListener('load',()=>{
       .pod:nth-child(4n+3) .bubble,.pod:nth-child(4n+4) .bubble{right:calc(50% + 38px)!important;left:auto!important}
     }
     @media(max-width:720px){
+      .bubble{max-width:118px!important}
       .pod:nth-child(odd) .bubble{left:calc(50% + 30px)!important;right:auto!important}
       .pod:nth-child(even) .bubble{right:calc(50% + 30px)!important;left:auto!important}
     }
@@ -254,6 +325,8 @@ frame.addEventListener('load',()=>{
   doc.head.appendChild(css);
   wirePods(doc);
   if(state)apply(state);
+  refreshBubbleVisibility(doc);
+  startBubbleRotation();
   resize();
   try{new ResizeObserver(resize).observe(doc.body)}catch(_){ }
   setTimeout(resize,500);
