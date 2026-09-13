@@ -24,6 +24,7 @@
   let liveChannel = null;
   let healthTimer = null;
   let currentSession = null;
+  let currentRole = '';
   let state = {
     rooms: [],
     notes: [],
@@ -41,6 +42,14 @@
     commandStatus.textContent = message;
   }
 
+  function updateMemberStatus() {
+    const canon = state.rooms.filter((room) => room.state_source === 'notion_canon').length;
+    const live = state.rooms.filter((room) => room.state_source === 'room_heartbeat').length;
+    const role = currentRole || 'member';
+    memberRole.textContent = `· ${role} · 📚${canon} · ⚡${live}`;
+    memberRole.title = `Notion正本同期 ${canon}ライン / 開発室Live同期 ${live}ライン`;
+  }
+
   function showGate() {
     gate.classList.remove('hidden');
     app.classList.add('hidden');
@@ -48,9 +57,10 @@
   }
 
   function showApp(role = '') {
+    currentRole = role || 'member';
     gate.classList.add('hidden');
     app.classList.remove('hidden');
-    memberRole.textContent = role ? `· ${role}` : '';
+    updateMemberStatus();
     resizeFrame();
   }
 
@@ -196,6 +206,7 @@
 
     updateCommandRooms();
     updateCommandButton();
+    updateMemberStatus();
     sendStateToAtelier();
   }
 
@@ -242,7 +253,9 @@
     healthTimer = null;
     state = { rooms: [], notes: [], health: [], commands: [], instances: [] };
     currentSession = null;
+    currentRole = '';
     updateCommandButton();
+    updateMemberStatus();
   }
 
   async function verifyMembership(session) {
