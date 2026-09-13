@@ -4,6 +4,7 @@
   const app = document.getElementById('app');
   const form = document.getElementById('login-form');
   const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
   const loginButton = document.getElementById('login-button');
   const statusEl = document.getElementById('status');
   const logoutButton = document.getElementById('logout');
@@ -66,14 +67,16 @@
   function updateCommandRooms() {
     const selected = commandRoom.value;
     commandRoom.innerHTML = '<option value="">担当Facultyを選択</option>';
-    state.rooms.forEach((room) => {
-      const option = document.createElement('option');
-      option.value = room.id;
-      const material = room.material_type === 'reading' ? 'Reading' : 'Lecture';
-      const current = [room.current_course_code, room.current_unit].filter(Boolean).join('-');
-      option.textContent = `${room.faculty_name} ${material}${current ? `｜${current}` : ''}`;
-      commandRoom.appendChild(option);
-    });
+    state.rooms
+      .filter((room) => room.is_unlocked && room.status !== 'done')
+      .forEach((room) => {
+        const option = document.createElement('option');
+        option.value = room.id;
+        const material = room.material_type === 'reading' ? 'Reading' : 'Lecture';
+        const current = [room.current_course_code, room.current_unit].filter(Boolean).join('-');
+        option.textContent = `${room.faculty_name} ${material}${current ? `｜${current}` : ''}`;
+        commandRoom.appendChild(option);
+      });
     if ([...commandRoom.options].some((o) => o.value === selected)) commandRoom.value = selected;
   }
 
@@ -97,6 +100,7 @@
   if (!ready) {
     loginButton.disabled = true;
     emailInput.disabled = true;
+    passwordInput.disabled = true;
     setStatus('🔧 認証基盤を接続中。Supabase設定後にこの扉が開くよ。');
     return;
   }
@@ -188,6 +192,9 @@
     const trimmed = instruction.trim();
     if (!roomId || !trimmed) throw new Error('担当Facultyと指示内容を選んでね。');
 
+    const room = state.rooms.find((item) => item.id === roomId);
+    if (!room?.is_unlocked || room.status === 'done') throw new Error('このFacultyは現在、指示受付対象ではないよ。');
+
     const commandType = trimmed === '次の実装へ進んで' ? 'next_implementation' : 'instruction';
     const { error } = await client.from('commands').insert({
       room_id: roomId,
@@ -218,22 +225,23 @@
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const email = emailInput.value.trim();
-    if (!email) return;
+    const password = passwordInput.value;
+    if (!email || !password) return;
 
     loginButton.disabled = true;
-    setStatus('📮 入館リンクを準備中…');
-    const redirectTo = config.redirectUrl || window.location.href.split('#')[0].split('?')[0];
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false, emailRedirectTo: redirectTo }
-    });
+    setStatus('🔐 入館確認中…');
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
     loginButton.disabled = false;
 
-    if (error) {
-      setStatus('入館リンクを送れなかったよ。登録済みアドレスか確認してね。', 'error');
+    if (error || !data.session) {
+      setStatus('メールアドレスかパスワードを確認してね。', 'error');
       return;
     }
-    setStatus('✉️ 入館リンクを送ったよ。メールから開いてね。');
+
+    passwordInput.value = '';
+    setStatus('');
+    await verifyMembership(data.session);
   });
 
   logoutButton.addEventListener('click', async () => {
