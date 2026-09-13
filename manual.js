@@ -47,3 +47,11 @@
   script.dataset.afocRoomfullRescue = '1';
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-afoc-faculty-progress]')) return;
+  const script = document.createElement('script');
+  script.src = './faculty-progress.js';
+  script.dataset.afocFacultyProgress = '1';
+  document.body.appendChild(script);
+})();
