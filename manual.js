@@ -87,3 +87,11 @@
   script.dataset.afocLearningNav = '1';
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-afoc-curriculum-controls]')) return;
+  const script = document.createElement('script');
+  script.src = './curriculum-controls.js';
+  script.dataset.afocCurriculumControls = '1';
+  document.body.appendChild(script);
+})();
