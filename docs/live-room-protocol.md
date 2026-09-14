@@ -72,6 +72,71 @@ Use `afoc_handoff_room` with reason `handoff` or `room_full`.
 
 The handoff checkpoint must preserve current position, completed work, unresolved issues and next action. The replacement chat starts by reading Notion canon plus the latest checkpoint, then calls `afoc_open_shift`.
 
+## Automatic faculty curriculum progress
+
+AFOC can now update faculty-level completion totals from structured progress milestones supplied in the existing `p_cursor` JSON of `afoc_checkpoint_shift` or `afoc_complete_shift`.
+
+Use `curriculum_progress` only when a **new formal milestone is actually reached after the automation baseline was established on 2026-09-14**.
+
+Supported stages:
+
+- `lecture_body` — the entire course Lecture Book body exists and course-level QA is complete.
+- `lecture_ready` — the entire course satisfies the faculty's formal delivery conditions, including the required student/LDB/DDB/preflight connections.
+- `reading_ready` — the course Reading Book set satisfies formal opening conditions.
+
+Example:
+
+```json
+{
+  "curriculum_progress": [
+    {
+      "stage": "lecture_body",
+      "course_code": "ECO203",
+      "completed_units": 20,
+      "course_complete": true
+    }
+  ]
+}
+```
+
+If one checkpoint reaches multiple milestones, include multiple entries:
+
+```json
+{
+  "curriculum_progress": [
+    {
+      "stage": "lecture_body",
+      "course_code": "PHL231",
+      "completed_units": 20,
+      "course_complete": true
+    },
+    {
+      "stage": "lecture_ready",
+      "course_code": "PHL231",
+      "completed_units": 20,
+      "course_complete": true
+    }
+  ]
+}
+```
+
+For formally opened partial Reading Book sets, `course_complete` may remain `false` while `completed_units` increases. Report the same course again with `course_complete=true` only when the entire course reaches formal opening.
+
+### Progress safety rules
+
+- Do **not** report `lecture_body` for 5/20, 10/20 or other in-progress body work. Those belong only in the live cursor.
+- Do **not** report `lecture_ready` merely because the body is finished.
+- Do **not** report `reading_ready` merely because draft production is finished; QA/canon/opening requirements must be met.
+- `completed_units` must come from confirmed canonical course structure, never a guess.
+- `course_complete=true` is reserved for the whole course milestone.
+- Do not retroactively report milestones that were already included in the 2026-09-14 baseline.
+
+AFOC stores milestones by unique `(faculty_code, stage, course_code)`, so repeated reports update the maximum confirmed unit count instead of double-counting the course.
+
+`afoc_checkpoint_shift` and `afoc_complete_shift` automatically call `afoc_apply_curriculum_progress` when the payload is present. `faculty_curriculum_progress` is a Supabase Realtime table, so AFOC redraws the faculty totals and progress bars after the database update.
+
+For faculties whose total lecture count is not yet canonically fixed, course-count progress can still update automatically; unit-based percentages remain unavailable until the canonical total is known.
+
 ## Command states
 
 `queued → claimed → done`
@@ -106,6 +171,10 @@ High-level room operations:
 - `afoc_complete_shift`
 - `afoc_handoff_room`
 
+Curriculum progress helper:
+
+- `afoc_apply_curriculum_progress`
+
 Low-level primitives retained for exceptional control:
 
 - `afoc_heartbeat`
@@ -119,4 +188,4 @@ Low-level primitives retained for exceptional control:
 
 ## Definition of working live sync
 
-Live sync is considered operational when AFOC can show the current cursor and next step without opening the ChatGPT room, a replacement room can resume from Notion + checkpoint after Room Full, queued commands can be claimed/completed in order, and each finished artifact links back to its Notion canonical page.
+Live sync is considered operational when AFOC can show the current cursor and next step without opening the ChatGPT room, a replacement room can resume from Notion + checkpoint after Room Full, queued commands can be claimed/completed in order, each finished artifact links back to its Notion canonical page, and newly completed course milestones automatically update the faculty curriculum map without manual recounting.
