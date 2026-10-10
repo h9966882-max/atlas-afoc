@@ -17,7 +17,7 @@
     .afoc-ops-list{display:grid;gap:5px;max-height:210px;overflow:auto;padding-right:2px}
     .afoc-ops-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:#fff;border:1px solid #eee3dc;border-radius:12px;padding:7px 9px}
     .afoc-ops-name{min-width:0;font-size:8px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.afoc-ops-state{font-size:7px;font-weight:900;white-space:nowrap;border-radius:999px;padding:4px 7px;background:#f0ece8}
-    .afoc-ops-state.working{background:#e8f1e8}.afoc-ops-state.quiet{background:#f4eee0}.afoc-ops-state.waiting-command{background:#fff0bd}.afoc-ops-state.processing{background:#e6edf5}.afoc-ops-state.attention{background:#f7dfdc}.afoc-ops-state.handoff{background:#eee5f3}.afoc-ops-state.done{background:#eceae7}
+    .afoc-ops-state.working{background:#e8f1e8}.afoc-ops-state.canon{background:#e8eef5}.afoc-ops-state.quiet{background:#f4eee0}.afoc-ops-state.waiting-command{background:#fff0bd}.afoc-ops-state.processing{background:#e6edf5}.afoc-ops-state.attention{background:#f7dfdc}.afoc-ops-state.handoff{background:#eee5f3}.afoc-ops-state.done{background:#eceae7}
     .afoc-ops-summary{font-size:8px;color:#8b817a;font-weight:700}
   `;
   document.head.appendChild(style);
@@ -63,11 +63,18 @@
 
     if (room.status === 'handoff') return { key: 'handoff', label: '📦 引継ぎ待ち' };
     if (room.status === 'room_full') return { key: 'handoff', label: '📚 ROOM FULL' };
-    if (['blocked', 'stalled'].includes(room.status) || health === 'stalled') {
+    if (['blocked', 'stalled'].includes(room.status)) {
       return { key: 'attention', label: '⚠️ 要確認' };
     }
     if (claimed) return { key: 'processing', label: '▶️ 指示処理中' };
     if (queued) return { key: 'waiting-command', label: '📮 指示あり・起動待ち' };
+    // A Notion-canon reconciliation updates the formal current position without
+    // pretending that the dormant ChatGPT room emitted a fresh heartbeat.
+    // Treat it as a distinct, healthy information state rather than a stale-room error.
+    if (room.state_source === 'notion_canon') {
+      return { key: 'canon', label: '📚 正本同期済み' };
+    }
+    if (health === 'stalled') return { key: 'attention', label: '⚠️ 要確認' };
     if (health === 'quiet') return { key: 'quiet', label: '💤 休憩中' };
     if (health === 'healthy') return { key: 'working', label: '🟢 稼働中' };
     if (room.status === 'done') return { key: 'done', label: '✅ 完了' };
@@ -82,7 +89,7 @@
       return acc;
     }, {});
 
-    summaryEl.textContent = `📮${counts['waiting-command'] || 0} · ▶️${counts.processing || 0} · 💤${counts.quiet || 0}${counts.handoff ? ` · 📦${counts.handoff}` : ''}`;
+    summaryEl.textContent = `📮${counts['waiting-command'] || 0} · ▶️${counts.processing || 0} · 📚${counts.canon || 0} · 💤${counts.quiet || 0}${counts.handoff ? ` · 📦${counts.handoff}` : ''}`;
     opsList.innerHTML = '';
     states.forEach(({ room, op }) => {
       const row = document.createElement('div');
@@ -184,7 +191,7 @@
         s.id = 'afoc-ops-patch-style';
         s.textContent = `
           .afoc-op-badge{position:absolute;left:50%;top:4px;transform:translateX(-50%);z-index:35;font-size:6.2px;font-weight:900;white-space:nowrap;border:1px solid #e8ddd6;border-radius:999px;padding:3px 6px;background:#fffdf9;box-shadow:0 3px 8px rgba(80,60,45,.07);pointer-events:none}
-          .afoc-op-badge.working{background:#e8f1e8}.afoc-op-badge.quiet{background:#f4eee0}.afoc-op-badge.waiting-command{background:#fff0bd}.afoc-op-badge.processing{background:#e6edf5}.afoc-op-badge.attention{background:#f7dfdc}.afoc-op-badge.handoff{background:#eee5f3}
+          .afoc-op-badge.working{background:#e8f1e8}.afoc-op-badge.canon{background:#e8eef5}.afoc-op-badge.quiet{background:#f4eee0}.afoc-op-badge.waiting-command{background:#fff0bd}.afoc-op-badge.processing{background:#e6edf5}.afoc-op-badge.attention{background:#f7dfdc}.afoc-op-badge.handoff{background:#eee5f3}
           .afoc-handoff-action{margin:11px 0 0;padding:10px;border:1px solid #ded0e8;background:#f7f1fa;border-radius:12px;text-align:left}
           .afoc-handoff-copy-note{font-size:7.5px;line-height:1.55;color:#655a69;margin-bottom:8px}.afoc-handoff-copy-note b{font-size:8px}
           .afoc-handoff-copy{display:block;width:100%;border:0;border-radius:10px;padding:9px 10px;background:#77647f;color:#fff;font:900 8px -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;box-shadow:0 5px 12px rgba(86,68,95,.14);cursor:pointer}
