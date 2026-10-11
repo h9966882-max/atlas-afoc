@@ -14,6 +14,19 @@
     .curriculum-content{padding:13px 15px 15px}.curriculum-content[hidden]{display:none!important}
     .map-section-title{font-size:8px;font-weight:950;letter-spacing:.11em;color:#927f76;margin:2px 2px 7px}.map-section-title:not(:first-child){margin-top:16px;padding-top:14px;border-top:1px dashed #eaded6}
     .campus-progress-card,.faculty-progress-card{border:1px solid #eaded6;border-radius:20px;background:#fffdfb;padding:12px;margin-bottom:10px}
+    .development-phase{margin:0 0 10px;border:1px solid #ddd8e8;border-radius:17px;background:linear-gradient(135deg,#f8f6fb,#fffdfa);padding:10px 11px}
+    .development-phase-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .development-phase small{display:block;font-size:6.8px;font-weight:950;letter-spacing:.11em;color:#978ca2}
+    .development-phase strong{display:block;font-size:12px;margin-top:2px;color:#514b59}
+    .development-phase .phase-note{font-size:7.5px;line-height:1.5;color:#7d747f;margin-top:3px}
+    .development-phase .phase-rule{font-size:6.5px;color:#a0979f;text-align:right;max-width:260px;line-height:1.45}
+    .development-flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:9px}
+    .development-step{position:relative;border:1px solid #e9e2e5;background:#faf8f8;border-radius:10px;padding:6px 5px;min-width:0;text-align:center}
+    .development-step b{display:block;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .development-step span{display:block;font-size:6px;color:#a09296;margin-top:2px}
+    .development-step.done{background:#eff5ed;border-color:#d4e2ce}.development-step.done b{color:#52644d}
+    .development-step.current{background:#f1edf7;border-color:#cfc2dc;box-shadow:inset 0 0 0 1px #ddd1e7}.development-step.current b{color:#5e506a}
+    .development-step.future{opacity:.58}
     .campus-progress-card{background:linear-gradient(150deg,#f9f2e8,#fffdf9)}
     .campus-top,.faculty-top{display:grid;grid-template-columns:1.35fr repeat(3,minmax(110px,.55fr));gap:8px;margin-bottom:10px}
     .campus-identity,.campus-stat,.faculty-identity,.faculty-stat{border:1px solid #eaded6;border-radius:16px;background:#fff;padding:11px 12px}
@@ -29,7 +42,7 @@
     .campus-segment-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:9px}.campus-segment{border:1px solid #e5dacd;border-radius:13px;background:rgba(255,255,255,.72);padding:9px;min-width:0}.campus-segment b{display:block;font-size:8.5px;margin-bottom:3px}.campus-segment .range{display:block;font-size:6.7px;color:#82776f;line-height:1.4;min-height:19px}.campus-segment .count{font-size:7.2px;font-weight:900;margin-top:5px}.campus-segment .status{display:block;font-size:6.5px;line-height:1.45;color:#7d716a;margin-top:3px}
     .canon-links{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.canon-links a{text-decoration:none;font-size:7px;font-weight:900;color:#625b56;border:1px solid #e4d9d1;background:#fff;border-radius:999px;padding:6px 8px}.curriculum-foot{font-size:7px;color:#978b84;margin-top:8px;line-height:1.55}
     .curriculum-loading{padding:18px;text-align:center;font-size:9px;color:#8c817a}
-    @media(max-width:760px){.campus-top,.faculty-top{grid-template-columns:1fr 1fr}.campus-identity,.faculty-identity{grid-column:1/-1}.material-lanes{grid-template-columns:1fr}.phase-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.campus-segment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.curriculum-board{padding:8px 7px 1px}.curriculum-head{padding:12px}.curriculum-content{padding:10px}.curriculum-head h2{font-size:16px}}
+    @media(max-width:760px){.development-phase-top{display:block}.development-phase .phase-rule{text-align:left;max-width:none;margin-top:5px}.development-flow{grid-template-columns:repeat(3,minmax(0,1fr))}.campus-top,.faculty-top{grid-template-columns:1fr 1fr}.campus-identity,.faculty-identity{grid-column:1/-1}.material-lanes{grid-template-columns:1fr}.phase-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.campus-segment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.curriculum-board{padding:8px 7px 1px}.curriculum-head{padding:12px}.curriculum-content{padding:10px}.curriculum-head h2{font-size:16px}}
     @media(max-width:430px){.campus-top,.faculty-top{grid-template-columns:1fr}.campus-identity,.faculty-identity{grid-column:auto}.phase-strip{grid-template-columns:1fr}.campus-segment-grid{grid-template-columns:1fr}}
   `;
   document.head.appendChild(style);
@@ -49,6 +62,21 @@
   let collapsed = localStorage.getItem('afoc-curriculum-collapsed') === '1';
   const facultyOrder = { PHL:1, REL:2, HIS:3, PSY:4, STR:5, ECO:6, BUS:7 };
   const facultyIcon = { PHL:'🏛️', REL:'🕯️', HIS:'📜', PSY:'🧠', STR:'♟️', ECO:'📈', BUS:'🛒' };
+  const developmentPhases = {
+    lecture_development:{label:'🐅 Lecture Book制作中',index:0},
+    reading_preparing:{label:'🐥 Reading Book着工準備',index:2},
+    reading_development:{label:'📖 Reading Book開発中',index:3},
+    reading_opening:{label:'📚 Reading Book正式開架進行中',index:4},
+    reading_complete:{label:'✅ 教材開発 COMPLETE',index:5}
+  };
+  const developmentSteps = [
+    ['🐅 Lecture制作','本文制作'],
+    ['✅ Lecture COMPLETE','本文完走'],
+    ['🐥 Reading準備','着工準備'],
+    ['📖 Reading制作','本文制作'],
+    ['📚 Reading開架','監査・正式開架'],
+    ['✅ 全教材COMPLETE','全科目開架']
+  ];
 
   const esc = (value) => String(value ?? '')
     .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
@@ -85,6 +113,26 @@
 
   function safeUrl(value){
     try{const u=new URL(value);return u.protocol==='https:'?u.href:''}catch(_){return ''}
+  }
+
+  function developmentPhaseHtml(f){
+    const meta=developmentPhases[f.development_phase] || developmentPhases.lecture_development;
+    const currentIndex=meta.index;
+    const lectureComplete=Number(f.lecture_body_courses||0)>=Number(f.total_courses||0) && Number(f.total_courses||0)>0;
+    const steps=developmentSteps.map((s,i)=>{
+      let state='future';
+      if(i<currentIndex) state='done';
+      if(i===currentIndex) state='current';
+      if(i===1 && lectureComplete && currentIndex>=2) state='done';
+      return `<div class="development-step ${state}"><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`;
+    }).join('');
+    return `<section class="development-phase" data-development-phase="${esc(f.development_phase||'lecture_development')}">
+      <div class="development-phase-top">
+        <div><small>CURRENT DEVELOPMENT PHASE</small><strong>${esc(meta.label)}</strong><div class="phase-note">${esc(f.development_phase_note||'正本・AFOC状態から判定')}</div></div>
+        <div class="phase-rule">教材制作フェーズの流れ。<br>Lectureの「正式提供」は下のLectureレーンで別判定。</div>
+      </div>
+      <div class="development-flow">${steps}</div>
+    </section>`;
   }
 
   function courseParts(code){
@@ -139,6 +187,7 @@
         <div class="campus-stat"><small>📙 Lecture Book</small><strong>${num(c.lecture_open_units)} / ${num(c.total_units)}</strong><em>本文・検索カタログ開架</em></div>
         <div class="campus-stat"><small>📗 Reading Book</small><strong>${num(c.reading_ready_units)} / ${num(c.total_units)}</strong><em>品質適合正本・正式開架</em></div>
       </div>
+      ${developmentPhaseHtml(f)}
       <div class="material-lanes">
         <section class="material-lane lecture">
           <div class="lane-head"><div class="lane-title">📙 Lecture Book<small>存在・開架とVersion成熟度を分けて表示</small></div><div class="lane-remain">本文・開架<b>${num(c.lecture_open_units)} / ${num(c.total_units)}</b></div></div>
