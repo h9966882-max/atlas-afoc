@@ -187,7 +187,6 @@
         <div class="campus-stat"><small>📙 Lecture Book</small><strong>${num(c.lecture_open_units)} / ${num(c.total_units)}</strong><em>本文・検索カタログ開架</em></div>
         <div class="campus-stat"><small>📗 Reading Book</small><strong>${num(c.reading_ready_units)} / ${num(c.total_units)}</strong><em>品質適合正本・正式開架</em></div>
       </div>
-      ${developmentPhaseHtml(f)}
       <div class="material-lanes">
         <section class="material-lane lecture">
           <div class="lane-head"><div class="lane-title">📙 Lecture Book<small>存在・開架とVersion成熟度を分けて表示</small></div><div class="lane-remain">本文・開架<b>${num(c.lecture_open_units)} / ${num(c.total_units)}</b></div></div>
@@ -258,6 +257,7 @@
         <div class="faculty-stat"><small>🐅 正式提供済み</small><strong>${readyStrong}</strong><em>${num(f.lecture_ready_courses)}科目｜残り ${num(f.lecture_remaining_courses)}科目</em></div>
         <div class="faculty-stat"><small>🐥 Reading正式開架</small><strong>${readingStrong}</strong><em>完了${num(f.reading_ready_courses)}科目${partial?'＋部分開架あり':''}</em></div>
       </div>
+      ${developmentPhaseHtml(f)}
       <div class="material-lanes">
         <section class="material-lane lecture">
           <div class="lane-head"><div class="lane-title">🐅 Lecture Book<small>本文完成と「正式に履修できる」を分けて表示</small></div><div class="lane-remain">正式提供 残り<b>${readyRemain}</b></div></div>
